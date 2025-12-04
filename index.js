@@ -2,9 +2,6 @@ require('dotenv').config();
 const {
   Client,
   GatewayIntentBits,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   PermissionsBitField,
 } = require('discord.js');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
@@ -35,8 +32,8 @@ function normalize(text) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
-// ====== LIST TỪ CẤM CỨNG ======
-const rawBannedWords = [
+// ====== HARD KEYWORD (nặng, xoá + timeout theo ngưỡng) ======
+const rawHardBanned = [
   'đm', 'dm', 'dmm', 'đmm', 'đkm', 'dkm', 'đcm', 'dcm', 'đcmm', 'dcmm',
   'vkl', 'vcl', 'vl', 'vcc', 'vc',
 
@@ -53,23 +50,70 @@ const rawBannedWords = [
 
   'fuck', 'fck', 'bitch', 'shit', 'cock', 'dick', 'pussy', 'asshole',
 
-  // racis / hate speech nên chặn cứng
+  // racist / hate speech nên chặn cứng
   'nigga',
   'nigger',
 
   'clmm', 'ccmn', 'cmm', 'vcl',
 ];
 
-const bannedWords = rawBannedWords.map((w) => normalize(w));
-const bannedWordsCompact = bannedWords.map((w) => w.replace(/\s+/g, ''));
+// ====== SOFT KEYWORD (nghi ngờ, mới nhờ AI check) ======
+const rawSoftFlag = [
+  // chung chung xúc phạm vừa
+  'ngu', 'ngu quá', 'ngu thật',
+  'đần', 'đần độn', 'khùng', 'điên',
+  'mất dạy', 'vô học', 'cặn bã', 'rác rưởi',
+  'vô dụng', 'vô tích sự',
 
-function containsBannedWord(text) {
+  // gọi hạ thấp
+  'thằng này', 'thằng kia', 'con này', 'con kia',
+  'thằng ngu', 'con ngu',
+  'đồ ngu', 'đồ điên', 'đồ rác', 'đồ khùng',
+  'thằng chó', 'con chó',
+
+  // đại từ dễ toxic (để AI phán, không auto ban)
+  'mày', 'tụi mày', 'chúng mày', 'bọn mày',
+  'tao nói thiệt', 'tao nói thật',
+
+  // body shaming
+  'béo phì', 'béo vcl', 'béo vl',
+  'thằng lùn', 'con lùn',
+  'xấu vãi', 'xấu vcl', 'xấu như chó',
+
+  // drama / toxic nhẹ
+  'toxic', 'drama', 'cà khịa',
+  'cay cú', 'cay nghiệt',
+
+  // English mild insults
+  'stupid', 'idiot', 'dumb',
+  'you suck', 'loser', 'moron',
+  'retard', 'retarded', 'cringe', 'lame',
+];
+
+// ====== MAP KEYWORD ======
+const hardBanned = rawHardBanned.map((w) => normalize(w));
+const hardBannedCompact = hardBanned.map((w) => w.replace(/\s+/g, ''));
+
+const softFlag = rawSoftFlag.map((w) => normalize(w));
+const softFlagCompact = softFlag.map((w) => w.replace(/\s+/g, ''));
+
+function containsHardBanned(text) {
   const norm = normalize(text);
   const normNoSpace = norm.replace(/\s+/g, '');
 
   return (
-    bannedWords.some((w) => norm.includes(w)) ||
-    bannedWordsCompact.some((w) => normNoSpace.includes(w))
+    hardBanned.some((w) => norm.includes(w)) ||
+    hardBannedCompact.some((w) => normNoSpace.includes(w))
+  );
+}
+
+function containsSoftFlag(text) {
+  const norm = normalize(text);
+  const normNoSpace = norm.replace(/\s+/g, '');
+
+  return (
+    softFlag.some((w) => norm.includes(w)) ||
+    softFlagCompact.some((w) => normNoSpace.includes(w))
   );
 }
 
@@ -96,7 +140,7 @@ Nhiệm vụ:
   2) BLOCK_SOFT:
      - Lời nói thiếu tôn trọng, mỉa mai, xúc phạm nhưng không quá nghiêm trọng
      - Drama, toxic vừa phải, chửi nhẹ, bóng gió nhưng không đến mức cực kỳ độc hại
-     → Những cái này nên đưa cho mod xem và quyết định có xoá hay không.
+     → Những cái này có thể xoá tin nhắn nhưng không cần timeout.
 
   3) ALLOW:
      - Trêu đùa nhẹ nhàng giữa bạn bè, không hạ nhục nghiêm trọng
@@ -124,9 +168,9 @@ Tin nhắn người dùng:
     console.log('🤖 Gemini đánh giá (raw):', raw, '->', content);
 
     const upper = raw.toUpperCase();
-    const [levelRaw, reasonRaw = ''] = upper.split('|');
+    const [levelRaw] = upper.split('|');
     const level = levelRaw.trim();
-    const reason = raw.split('|')[1]?.trim() || ''; // lấy reason bản gốc để giữ dấu
+    const reason = raw.split('|')[1]?.trim() || ''; // reason bản gốc giữ dấu
 
     if (!['BLOCK_STRONG', 'BLOCK_SOFT', 'ALLOW'].includes(level)) {
       return { level: 'ALLOW', reason: '' };
@@ -154,12 +198,168 @@ client.once('ready', () => {
   console.log(`🔥 Bot đã online: ${client.user.tag}`);
 });
 
-// helper: kiểm tra user có quyền mod không
+// helper: kiểm tra user có quyền mod không (để sau này nếu cần)
 function isModerator(member) {
   if (!member) return false;
   return member.permissions.has(PermissionsBitField.Flags.ManageMessages);
 }
 
+// ====== QUẢN LÝ VI PHẠM & TIMEOUT (chỉ với HARD keyword) ======
+const userViolations = new Map(); // userId -> { warnings, lastAt }
+const VIOLATION_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 tiếng
+
+// 4 mốc: 5, 10, 15, 20
+const PENALTY_STEPS = [
+  { threshold: 5, durationMs: 3 * 60 * 1000 },      // 3p
+  { threshold: 10, durationMs: 5 * 60 * 1000 },     // 5p
+  { threshold: 15, durationMs: 10 * 60 * 1000 },    // 10p
+  { threshold: 20, durationMs: 60 * 60 * 1000 },    // 1h
+];
+
+function computePenalty(warnings) {
+  let currentStep = null;
+  for (const step of PENALTY_STEPS) {
+    if (warnings >= step.threshold) {
+      currentStep = step;
+    }
+  }
+  const nextStep = PENALTY_STEPS.find((s) => s.threshold > warnings) || null;
+  return {
+    timeoutMs: currentStep ? currentStep.durationMs : 0,
+    currentStep,
+    nextStep,
+  };
+}
+
+// Xử lý vi phạm (xoá, DM, timeout nếu là HARD keyword)
+async function handleViolation(message, severity, baseReason, sourceTag) {
+  const user = message.author;
+  const guild = message.guild;
+  const member = message.member;
+  const userId = user.id;
+
+  const serverName = guild?.name || 'server';
+
+  // chỉ HARD keyword mới tăng cảnh báo + timeout
+  const isHardKeyword = severity === 'STRONG' && sourceTag === 'LIST_HARD';
+
+  let warnings = 0;
+  let penaltyInfo = { timeoutMs: 0, currentStep: null, nextStep: null };
+
+  if (isHardKeyword) {
+    const now = Date.now();
+    const record = userViolations.get(userId) || { warnings: 0, lastAt: 0 };
+
+    // reset nếu im > 2h
+    if (record.lastAt && now - record.lastAt > VIOLATION_WINDOW_MS) {
+      record.warnings = 0;
+    }
+
+    record.warnings += 1;
+    record.lastAt = now;
+    userViolations.set(userId, record);
+
+    warnings = record.warnings;
+    penaltyInfo = computePenalty(warnings);
+  }
+
+  // 1) Xoá tin nhắn
+  try {
+    await message.delete();
+  } catch (err) {
+    console.error('Không xoá được tin nhắn vi phạm:', err);
+  }
+
+  // 2) Soạn lý do + cảnh báo
+  const reasonText =
+    baseReason ||
+    (severity === 'STRONG'
+      ? 'Nội dung bị đánh giá là xúc phạm/độc hại.'
+      : 'Nội dung có thể chưa phù hợp với nội quy server.');
+
+  let extraWarningText = '';
+
+  if (isHardKeyword) {
+    const { nextStep } = penaltyInfo;
+
+    if (warnings < PENALTY_STEPS[0].threshold) {
+      const remaining = PENALTY_STEPS[0].threshold - warnings;
+      extraWarningText =
+        `\n\n⚠️ Cảnh báo: Bạn đã vi phạm **${warnings}** lần (trong khoảng thời gian gần đây).` +
+        ` Nếu còn vi phạm thêm **${remaining}** lần nữa, bạn sẽ bị hệ thống khoá chat tạm thời.`;
+    } else if (nextStep) {
+      const remaining = nextStep.threshold - warnings;
+      extraWarningText =
+        `\n\n⚠️ Bạn đã vi phạm **${warnings}** lần. Nếu tiếp tục vi phạm thêm **${remaining}** lần nữa, ` +
+        `hình thức xử lý sẽ bị nâng nặng hơn.`;
+    } else {
+      extraWarningText =
+        `\n\n⚠️ Bạn đã vi phạm rất nhiều lần trong khoảng thời gian gần đây. ` +
+        `Nếu tiếp tục, bạn có thể bị xử lý nặng hơn (kick/ban khỏi server).`;
+    }
+  }
+
+  // 3) DM cho user
+  try {
+    await user.send(
+      `🚫 Tin nhắn của bạn trong server **${serverName}** đã bị xoá.\n` +
+      `> Nội dung: "${message.content}"\n` +
+      `> Lý do: ${reasonText}` +
+      (severity === 'STRONG'
+        ? `\n\nVui lòng chú ý cách dùng từ khi chat trong server.`
+        : '') +
+      extraWarningText
+    );
+  } catch (err) {
+    console.error('Không DM được cho user (có thể họ tắt DM):', err);
+  }
+
+  // Nếu không phải HARD keyword → không timeout, chỉ log
+  if (!isHardKeyword) {
+    console.log(
+      `⚠️ Vi phạm mức ${severity} từ ${user.tag} (${sourceTag}): ${message.content}`
+    );
+    return;
+  }
+
+  // 4) HARD keyword → nếu đủ ngưỡng thì timeout
+  const { timeoutMs } = penaltyInfo;
+
+  if (timeoutMs > 0 && member && member.moderatable) {
+    try {
+      await member.timeout(
+        timeoutMs,
+        `Vi phạm nội quy (${sourceTag}): ${reasonText}`
+      );
+      console.log(
+        `⏱ Đã timeout ${user.tag} trong ${Math.round(
+          timeoutMs / 60000
+        )} phút (tổng vi phạm keyword: ${warnings}).`
+      );
+
+      // thông báo nhẹ trong channel
+      try {
+        await message.channel.send(
+          `🚫 <@${user.id}> đã bị tạm khoá chat do vi phạm nội quy nhiều lần.`
+        );
+      } catch (err) {
+        // ignore
+      }
+    } catch (err) {
+      console.error('Không timeout được member (thiếu quyền?):', err);
+    }
+  } else if (!member || !member.moderatable) {
+    console.warn(
+      `⚠️ Không thể timeout ${user.tag} (có thể bot thiếu quyền hoặc user cao role hơn).`
+    );
+  } else {
+    console.log(
+      `⚠️ Vi phạm HARD keyword từ ${user.tag} (chưa đủ ngưỡng timeout). Tổng vi phạm: ${warnings}`
+    );
+  }
+}
+
+// ====== XỬ LÝ TIN NHẮN ======
 client.on('messageCreate', async (message) => {
   try {
     if (message.author.bot) return;
@@ -172,149 +372,61 @@ client.on('messageCreate', async (message) => {
       const firstWord = content.split(/\s+/)[0];
 
       if (!allowedCommands.includes(firstWord)) {
-        try {
-          await message.delete();
-          await message.channel.send(
-            `🚫 <@${message.author.id}> Mồm đi hơi xa rồi đấy, tém tém lại nhé! (Lệnh không đúng form)`
-          );
-          console.log(
-            `🗑 Xoá lệnh sai form từ ${message.author.tag}: ${content}`
-          );
-        } catch (err) {
-          console.error('Lỗi khi xoá lệnh sai form:', err);
-        }
+        // Sai form lệnh → xoá + DM, KHÔNG tính cảnh báo keyword
+        await handleViolation(
+          message,
+          'SOFT',
+          'Lệnh không đúng form, vui lòng chỉ dùng các lệnh hợp lệ trong server.',
+          'CMD_FORM'
+        );
       }
       return;
     }
 
-    // 2) Keyword nặng trong list → coi như BLOCK_STRONG
-    if (containsBannedWord(content)) {
-      const reason =
-        'Sử dụng từ ngữ tục tĩu/nặng nằm trong danh sách cấm của server.';
-      try {
-        await message.delete();
-        await message.channel.send(
-          `🚫 <@${message.author.id}> Tin nhắn của bạn đã bị xoá.\n> Lý do: ${reason}`
+    // 2) HARD keyword → xoá + DM + tính cảnh báo + timeout theo ngưỡng
+    if (containsHardBanned(content)) {
+      await handleViolation(
+        message,
+        'STRONG',
+        'Sử dụng từ ngữ tục tĩu/nặng nằm trong danh sách cấm của server.',
+        'LIST_HARD'
+      );
+      return;
+    }
+
+    // 3) SOFT keyword → nhờ AI phân loại (chỉ xoá + DM, không tính cảnh báo)
+    if (containsSoftFlag(content)) {
+      const { level, reason } = await analyzeByGemini(content);
+
+      if (level === 'ALLOW') return;
+
+      if (level === 'BLOCK_STRONG') {
+        await handleViolation(
+          message,
+          'STRONG',
+          reason || 'Nội dung độc hại/mang tính miệt thị hoặc xúc phạm nghiêm trọng.',
+          'AI_BLOCK_STRONG'
         );
-        console.log(
-          `🧹 Xoá tin nhắn (LIST) từ ${message.author.tag}: ${content}`
-        );
-      } catch (err) {
-        console.error('Lỗi khi xoá tin nhắn (list):', err);
+        return;
       }
-      return;
-    }
 
-    // 3) Không trúng list → nhờ Gemini phân loại
-    const { level, reason } = await analyzeByGemini(content);
-
-    if (level === 'ALLOW') {
-      return;
-    }
-
-    if (level === 'BLOCK_STRONG') {
-      const finalReason =
-        reason || 'Nội dung độc hại/mang tính miệt thị hoặc xúc phạm nghiêm trọng.';
-      try {
-        await message.delete();
-        await message.channel.send(
-          `🚫 <@${message.author.id}> Tin nhắn của bạn đã bị xoá.\n> Lý do: ${finalReason}`
+      if (level === 'BLOCK_SOFT') {
+        await handleViolation(
+          message,
+          'SOFT',
+          reason || 'Nội dung có thể chưa phù hợp, vui lòng chú ý cách dùng từ.',
+          'AI_BLOCK_SOFT'
         );
-        console.log(
-          `🧹 Xoá tin nhắn (AI BLOCK_STRONG) từ ${message.author.tag}: ${content}`
-        );
-      } catch (err) {
-        console.error('Lỗi khi xoá tin nhắn (BLOCK_STRONG):', err);
+        return;
       }
+
       return;
     }
 
-    if (level === 'BLOCK_SOFT') {
-      const finalReason =
-        reason || 'Nội dung có thể chưa phù hợp, cần mod xem xét.';
-      try {
-        const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`hide_${message.id}`)
-            .setLabel('Ẩn tin nhắn')
-            .setStyle(ButtonStyle.Danger),
-          new ButtonBuilder()
-            .setCustomId(`keep_${message.id}`)
-            .setLabel('Giữ nguyên')
-            .setStyle(ButtonStyle.Secondary)
-        );
-
-        await message.reply({
-          content:
-            `⚠️ Tin nhắn này có thể chưa phù hợp: **${finalReason}**\n` +
-            `Chỉ quản trị viên / mod dùng nút bên dưới để quyết định ẩn/giữ.`,
-          components: [row],
-        });
-
-        console.log(
-          `⚠️ Tin nhắn (AI BLOCK_SOFT) từ ${message.author.tag}: ${content}`
-        );
-      } catch (err) {
-        console.error('Lỗi khi gửi panel BLOCK_SOFT:', err);
-      }
-      return;
-    }
+    // 4) Không chứa hard / soft keyword → bỏ qua, không gọi AI (tiết kiệm API)
+    return;
   } catch (err) {
     console.error('Lỗi chung trong messageCreate:', err);
-  }
-});
-
-// Xử lý nút Ẩn / Giữ
-client.on('interactionCreate', async (interaction) => {
-  try {
-    if (!interaction.isButton()) return;
-
-    const customId = interaction.customId;
-    const [action, msgId] = customId.split('_');
-
-    if (!isModerator(interaction.member)) {
-      return interaction.reply({
-        content: '❌ Bạn không có quyền dùng nút này.',
-        ephemeral: true,
-      });
-    }
-
-    const channel = interaction.channel;
-    if (!channel || !msgId) {
-      return interaction.reply({
-        content: '❌ Không tìm thấy tin nhắn cần xử lý.',
-        ephemeral: true,
-      });
-    }
-
-    const targetMessage = await channel.messages.fetch(msgId).catch(() => null);
-
-    if (action === 'hide') {
-      if (targetMessage) {
-        await targetMessage.delete().catch(() => null);
-      }
-      await interaction.update({
-        content: '✅ Tin nhắn đã được ẩn (xoá) theo quyết định của mod.',
-        components: [],
-      });
-      return;
-    }
-
-    if (action === 'keep') {
-      await interaction.update({
-        content: '✅ Quyết định giữ nguyên tin nhắn. Panel đã được đóng.',
-        components: [],
-      });
-      return;
-    }
-  } catch (err) {
-    console.error('Lỗi khi xử lý interaction (button):', err);
-    if (interaction.isRepliable()) {
-      await interaction.reply({
-        content: '❌ Đã xảy ra lỗi khi xử lý nút.',
-        ephemeral: true,
-      }).catch(() => {});
-    }
   }
 });
 
