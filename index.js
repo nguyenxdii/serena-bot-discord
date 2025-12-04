@@ -1,5 +1,12 @@
 require('dotenv').config();
-const { Client, GatewayIntentBits } = require('discord.js');
+const {
+  Client,
+  GatewayIntentBits,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  PermissionsBitField,
+} = require('discord.js');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
@@ -8,7 +15,7 @@ if (!DISCORD_TOKEN) {
   process.exit(1);
 }
 
-// ====== GEMINI SETUP (OPTIONAL) ======
+// ====== GEMINI SETUP ======
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 let geminiModel = null;
 
@@ -20,7 +27,7 @@ if (GEMINI_API_KEY) {
   console.warn('⚠️ Không có GEMINI_API_KEY → chỉ dùng lọc keyword.');
 }
 
-// ----- HÀM NORMALIZE ĐỂ DÙNG CHUNG -----
+// ====== HÀM NORMALIZE ======
 function normalize(text) {
   return text
     .toLowerCase()
@@ -28,7 +35,7 @@ function normalize(text) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
-// ====== LIST TỪ GỐC ======
+// ====== LIST TỪ CẤM CỨNG ======
 const rawBannedWords = [
   'đm', 'dm', 'dmm', 'đmm', 'đkm', 'dkm', 'đcm', 'dcm', 'đcmm', 'dcmm',
   'vkl', 'vcl', 'vl', 'vcc', 'vc',
@@ -46,44 +53,66 @@ const rawBannedWords = [
 
   'fuck', 'fck', 'bitch', 'shit', 'cock', 'dick', 'pussy', 'asshole',
 
-  'clmm', 'ccmn', 'cmm', 'vcl'
+  // racis / hate speech nên chặn cứng
+  'nigga',
+  'nigger',
+
+  'clmm', 'ccmn', 'cmm', 'vcl',
 ];
 
-// ====== LIST SAU KHI BỎ DẤU + LOWERCASE ======
 const bannedWords = rawBannedWords.map((w) => normalize(w));
-// Bản “dính liền không dấu cách” để bắt kiểu: conmemayngunhucho
 const bannedWordsCompact = bannedWords.map((w) => w.replace(/\s+/g, ''));
 
-// Kiểm tra nội dung có chứa từ bậy trong list
 function containsBannedWord(text) {
-  const norm = normalize(text);                // giữ nguyên khoảng trắng
-  const normNoSpace = norm.replace(/\s+/g, ''); // bỏ hết khoảng trắng
+  const norm = normalize(text);
+  const normNoSpace = norm.replace(/\s+/g, '');
 
-  // match bình thường + match khi user viết liền không cách
   return (
     bannedWords.some((w) => norm.includes(w)) ||
     bannedWordsCompact.some((w) => normNoSpace.includes(w))
   );
 }
 
-// ====== CHECK THÊM BẰNG GEMINI (NHẸ NHÀNG) ======
-async function shouldBlockByGemini(content) {
-  if (!geminiModel) return false;
-  if (content.length > 300) return false;
+// ====== PHÂN TÍCH BỞI GEMINI: ALLOW / BLOCK_SOFT / BLOCK_STRONG ======
+async function analyzeByGemini(content) {
+  if (!geminiModel) return { level: 'ALLOW', reason: '' };
+  if (content.length > 400) return { level: 'ALLOW', reason: '' };
 
   const prompt = `
-Bạn là bộ lọc nội dung nhẹ nhàng cho một server Discord bạn bè.
-Nhiệm vụ của bạn là CHỈ phát hiện những tin nhắn thực sự tục tĩu, xúc phạm nặng,
-dùng lời lẽ thô tục về tình dục, lôi bố mẹ ra chửi, miệt thị nặng, phân biệt chủng tộc, giới tính, tôn giáo,...
+Bạn là bộ lọc nội dung cho một server Discord bạn bè.
 
-Đừng quá khắt khe:
-- Cho phép các câu nói vui, trêu đùa nhẹ, chọc ghẹo giữa bạn bè
-- Cho phép góp ý/than phiền không lịch sự lắm nhưng không quá nặng
-- Nếu bạn không chắc là có nên xoá hay không → HÃY CHỌN ALLOW
+Nhiệm vụ:
+- Phân loại tin nhắn thành 3 mức:
+  1) BLOCK_STRONG:
+     - Chửi tục thô bạo, lôi bố mẹ ra chửi, xúc phạm danh dự nghiêm trọng
+     - Nội dung tình dục bẩn thỉu, quấy rối tình dục nặng
+     - Đe doạ bạo lực, cổ vũ tự sát, hành vi cực kỳ nguy hiểm
+     - PHÂN BIỆT ĐỐI XỬ / HATE SPEECH:
+       • Từ ngữ miệt thị chủng tộc, màu da, dân tộc, quốc tịch
+       • Miệt thị tôn giáo, giới tính, xu hướng tính dục, khuyết tật
+       • Gọi người khác bằng các từ xúc phạm nặng dựa trên các đặc điểm trên
+     → Các trường hợp này phải coi là BLOCK_STRONG.
 
-Chỉ trả lời DUY NHẤT MỘT TỪ (viết hoa):
-- "BLOCK" nếu tin nhắn cần bị xoá
-- "ALLOW" nếu tin nhắn có thể chấp nhận được hoặc bạn không chắc
+  2) BLOCK_SOFT:
+     - Lời nói thiếu tôn trọng, mỉa mai, xúc phạm nhưng không quá nghiêm trọng
+     - Drama, toxic vừa phải, chửi nhẹ, bóng gió nhưng không đến mức cực kỳ độc hại
+     → Những cái này nên đưa cho mod xem và quyết định có xoá hay không.
+
+  3) ALLOW:
+     - Trêu đùa nhẹ nhàng giữa bạn bè, không hạ nhục nghiêm trọng
+     - Than phiền, cằn nhằn, nói hơi gắt nhưng không đi quá giới hạn
+     - Khi bạn không chắc chắn → HÃY CHỌN ALLOW.
+
+Yêu cầu:
+- TRẢ LỜI DUY NHẤT MỘT DÒNG, dạng:
+  LEVEL|LÝ_DO_NGẮN_GỌN
+- LEVEL chỉ có thể là một trong: BLOCK_STRONG, BLOCK_SOFT, ALLOW
+- LÝ_DO_NGẮN_GỌN viết tiếng Việt, tối đa 15 từ.
+
+Ví dụ:
+BLOCK_STRONG|Miệt thị chủng tộc nặng
+BLOCK_SOFT|Chửi nhẹ, có thể hơi xúc phạm
+ALLOW|Chỉ trêu đùa nhẹ
 
 Tin nhắn người dùng:
 """${content}"""
@@ -91,81 +120,201 @@ Tin nhắn người dùng:
 
   try {
     const result = await geminiModel.generateContent(prompt);
-    const text = (await result.response.text()).trim().toUpperCase();
+    const raw = (await result.response.text()).trim();
+    console.log('🤖 Gemini đánh giá (raw):', raw, '->', content);
 
-    console.log('🤖 Gemini đánh giá:', text, '->', content);
-    return text.includes('BLOCK');
+    const upper = raw.toUpperCase();
+    const [levelRaw, reasonRaw = ''] = upper.split('|');
+    const level = levelRaw.trim();
+    const reason = raw.split('|')[1]?.trim() || ''; // lấy reason bản gốc để giữ dấu
+
+    if (!['BLOCK_STRONG', 'BLOCK_SOFT', 'ALLOW'].includes(level)) {
+      return { level: 'ALLOW', reason: '' };
+    }
+
+    return { level, reason };
   } catch (err) {
     console.error('Lỗi gọi Gemini:', err);
-    return false;
+    return { level: 'ALLOW', reason: '' };
   }
 }
 
-// ====== PHẦN DISCORD ======
+// ====== DISCORD BOT ======
 const allowedCommands = ['/vidu'];
 
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
+    GatewayIntentBits.MessageContent,
+  ],
 });
 
 client.once('ready', () => {
   console.log(`🔥 Bot đã online: ${client.user.tag}`);
 });
 
+// helper: kiểm tra user có quyền mod không
+function isModerator(member) {
+  if (!member) return false;
+  return member.permissions.has(PermissionsBitField.Flags.ManageMessages);
+}
+
 client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
+  try {
+    if (message.author.bot) return;
 
-  const content = message.content.trim();
-  if (!content) return;
+    const content = message.content.trim();
+    if (!content) return;
 
-  // 1) Lệnh kiểu text bắt đầu bằng "/"
-  if (content.startsWith('/')) {
-    const firstWord = content.split(/\s+/)[0];
+    // 1) Lệnh kiểu text bắt đầu bằng "/"
+    if (content.startsWith('/')) {
+      const firstWord = content.split(/\s+/)[0];
 
-    if (!allowedCommands.includes(firstWord)) {
+      if (!allowedCommands.includes(firstWord)) {
+        try {
+          await message.delete();
+          await message.channel.send(
+            `🚫 <@${message.author.id}> Mồm đi hơi xa rồi đấy, tém tém lại nhé! (Lệnh không đúng form)`
+          );
+          console.log(
+            `🗑 Xoá lệnh sai form từ ${message.author.tag}: ${content}`
+          );
+        } catch (err) {
+          console.error('Lỗi khi xoá lệnh sai form:', err);
+        }
+      }
+      return;
+    }
+
+    // 2) Keyword nặng trong list → coi như BLOCK_STRONG
+    if (containsBannedWord(content)) {
+      const reason =
+        'Sử dụng từ ngữ tục tĩu/nặng nằm trong danh sách cấm của server.';
       try {
         await message.delete();
         await message.channel.send(
-          `🚫 <@${message.author.id}> Mồm đi hơi xa rồi đấy, tém tém lại nhé!`
+          `🚫 <@${message.author.id}> Tin nhắn của bạn đã bị xoá.\n> Lý do: ${reason}`
         );
-        console.log(`🗑 Xoá lệnh sai form từ ${message.author.tag}: ${content}`);
+        console.log(
+          `🧹 Xoá tin nhắn (LIST) từ ${message.author.tag}: ${content}`
+        );
       } catch (err) {
-        console.error('Lỗi khi xoá lệnh sai form:', err);
+        console.error('Lỗi khi xoá tin nhắn (list):', err);
       }
+      return;
     }
-    return;
-  }
 
-  // 2) Lọc bằng danh sách từ bậy trước
-  if (containsBannedWord(content)) {
-    try {
-      await message.delete();
-      await message.channel.send(
-        `🚫 <@${message.author.id}> Mồm đi hơi xa rồi đấy, tém tém lại nhé!`
-      );
-      console.log(`🧹 Xoá tin nhắn có từ bậy (list) từ ${message.author.tag}: ${content}`);
-    } catch (err) {
-      console.error('Lỗi khi xoá tin nhắn chửi bậy (list):', err);
+    // 3) Không trúng list → nhờ Gemini phân loại
+    const { level, reason } = await analyzeByGemini(content);
+
+    if (level === 'ALLOW') {
+      return;
     }
-    return;
-  }
 
-  // 3) Nếu qua được list → nhờ Gemini check thêm
-  try {
-    const blockByGemini = await shouldBlockByGemini(content);
-    if (blockByGemini) {
-      await message.delete();
-      await message.channel.send(
-        `🚫 <@${message.author.id}> Mồm đi hơi xa rồi đấy, tém tém lại nhé!`
-      );
-      console.log(`🧹 Xoá tin nhắn do Gemini đánh giá BLOCK từ ${message.author.tag}: ${content}`);
+    if (level === 'BLOCK_STRONG') {
+      const finalReason =
+        reason || 'Nội dung độc hại/mang tính miệt thị hoặc xúc phạm nghiêm trọng.';
+      try {
+        await message.delete();
+        await message.channel.send(
+          `🚫 <@${message.author.id}> Tin nhắn của bạn đã bị xoá.\n> Lý do: ${finalReason}`
+        );
+        console.log(
+          `🧹 Xoá tin nhắn (AI BLOCK_STRONG) từ ${message.author.tag}: ${content}`
+        );
+      } catch (err) {
+        console.error('Lỗi khi xoá tin nhắn (BLOCK_STRONG):', err);
+      }
+      return;
+    }
+
+    if (level === 'BLOCK_SOFT') {
+      const finalReason =
+        reason || 'Nội dung có thể chưa phù hợp, cần mod xem xét.';
+      try {
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`hide_${message.id}`)
+            .setLabel('Ẩn tin nhắn')
+            .setStyle(ButtonStyle.Danger),
+          new ButtonBuilder()
+            .setCustomId(`keep_${message.id}`)
+            .setLabel('Giữ nguyên')
+            .setStyle(ButtonStyle.Secondary)
+        );
+
+        await message.reply({
+          content:
+            `⚠️ Tin nhắn này có thể chưa phù hợp: **${finalReason}**\n` +
+            `Chỉ quản trị viên / mod dùng nút bên dưới để quyết định ẩn/giữ.`,
+          components: [row],
+        });
+
+        console.log(
+          `⚠️ Tin nhắn (AI BLOCK_SOFT) từ ${message.author.tag}: ${content}`
+        );
+      } catch (err) {
+        console.error('Lỗi khi gửi panel BLOCK_SOFT:', err);
+      }
+      return;
     }
   } catch (err) {
-    console.error('Lỗi khi xử lý Gemini:', err);
+    console.error('Lỗi chung trong messageCreate:', err);
+  }
+});
+
+// Xử lý nút Ẩn / Giữ
+client.on('interactionCreate', async (interaction) => {
+  try {
+    if (!interaction.isButton()) return;
+
+    const customId = interaction.customId;
+    const [action, msgId] = customId.split('_');
+
+    if (!isModerator(interaction.member)) {
+      return interaction.reply({
+        content: '❌ Bạn không có quyền dùng nút này.',
+        ephemeral: true,
+      });
+    }
+
+    const channel = interaction.channel;
+    if (!channel || !msgId) {
+      return interaction.reply({
+        content: '❌ Không tìm thấy tin nhắn cần xử lý.',
+        ephemeral: true,
+      });
+    }
+
+    const targetMessage = await channel.messages.fetch(msgId).catch(() => null);
+
+    if (action === 'hide') {
+      if (targetMessage) {
+        await targetMessage.delete().catch(() => null);
+      }
+      await interaction.update({
+        content: '✅ Tin nhắn đã được ẩn (xoá) theo quyết định của mod.',
+        components: [],
+      });
+      return;
+    }
+
+    if (action === 'keep') {
+      await interaction.update({
+        content: '✅ Quyết định giữ nguyên tin nhắn. Panel đã được đóng.',
+        components: [],
+      });
+      return;
+    }
+  } catch (err) {
+    console.error('Lỗi khi xử lý interaction (button):', err);
+    if (interaction.isRepliable()) {
+      await interaction.reply({
+        content: '❌ Đã xảy ra lỗi khi xử lý nút.',
+        ephemeral: true,
+      }).catch(() => {});
+    }
   }
 });
 
