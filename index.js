@@ -32,7 +32,7 @@ function normalize(text) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
-// ====== HARD KEYWORD (nặng, xoá + timeout theo ngưỡng) ======
+// ====== HARD KEYWORD (nặng, dùng để đếm & ban) ======
 const rawHardBanned = [
   'đm', 'dm', 'dmm', 'đmm', 'đkm', 'dkm', 'đcm', 'dcm', 'đcmm', 'dcmm',
   'vkl', 'vcl', 'vl', 'vcc', 'vc',
@@ -57,34 +57,28 @@ const rawHardBanned = [
   'clmm', 'ccmn', 'cmm', 'vcl',
 ];
 
-// ====== SOFT KEYWORD (nghi ngờ, mới nhờ AI check) ======
+// ====== SOFT KEYWORD (nghi ngờ, để gọi AI) ======
 const rawSoftFlag = [
-  // chung chung xúc phạm vừa
   'ngu', 'ngu quá', 'ngu thật',
   'đần', 'đần độn', 'khùng', 'điên',
   'mất dạy', 'vô học', 'cặn bã', 'rác rưởi',
   'vô dụng', 'vô tích sự',
 
-  // gọi hạ thấp
   'thằng này', 'thằng kia', 'con này', 'con kia',
   'thằng ngu', 'con ngu',
   'đồ ngu', 'đồ điên', 'đồ rác', 'đồ khùng',
   'thằng chó', 'con chó',
 
-  // đại từ dễ toxic (để AI phán, không auto ban)
   'mày', 'tụi mày', 'chúng mày', 'bọn mày',
   'tao nói thiệt', 'tao nói thật',
 
-  // body shaming
   'béo phì', 'béo vcl', 'béo vl',
   'thằng lùn', 'con lùn',
   'xấu vãi', 'xấu vcl', 'xấu như chó',
 
-  // drama / toxic nhẹ
   'toxic', 'drama', 'cà khịa',
   'cay cú', 'cay nghiệt',
 
-  // English mild insults
   'stupid', 'idiot', 'dumb',
   'you suck', 'loser', 'moron',
   'retard', 'retarded', 'cringe', 'lame',
@@ -100,7 +94,6 @@ const softFlagCompact = softFlag.map((w) => w.replace(/\s+/g, ''));
 function containsHardBanned(text) {
   const norm = normalize(text);
   const normNoSpace = norm.replace(/\s+/g, '');
-
   return (
     hardBanned.some((w) => norm.includes(w)) ||
     hardBannedCompact.some((w) => normNoSpace.includes(w))
@@ -110,14 +103,13 @@ function containsHardBanned(text) {
 function containsSoftFlag(text) {
   const norm = normalize(text);
   const normNoSpace = norm.replace(/\s+/g, '');
-
   return (
     softFlag.some((w) => norm.includes(w)) ||
     softFlagCompact.some((w) => normNoSpace.includes(w))
   );
 }
 
-// ====== PHÂN TÍCH BỞI GEMINI: ALLOW / BLOCK_SOFT / BLOCK_STRONG ======
+// ====== PHÂN TÍCH BỞI GEMINI ======
 async function analyzeByGemini(content) {
   if (!geminiModel) return { level: 'ALLOW', reason: '' };
   if (content.length > 400) return { level: 'ALLOW', reason: '' };
@@ -127,38 +119,17 @@ Bạn là bộ lọc nội dung cho một server Discord bạn bè.
 
 Nhiệm vụ:
 - Phân loại tin nhắn thành 3 mức:
-  1) BLOCK_STRONG:
-     - Chửi tục thô bạo, lôi bố mẹ ra chửi, xúc phạm danh dự nghiêm trọng
-     - Nội dung tình dục bẩn thỉu, quấy rối tình dục nặng
-     - Đe doạ bạo lực, cổ vũ tự sát, hành vi cực kỳ nguy hiểm
-     - PHÂN BIỆT ĐỐI XỬ / HATE SPEECH:
-       • Từ ngữ miệt thị chủng tộc, màu da, dân tộc, quốc tịch
-       • Miệt thị tôn giáo, giới tính, xu hướng tính dục, khuyết tật
-       • Gọi người khác bằng các từ xúc phạm nặng dựa trên các đặc điểm trên
-     → Các trường hợp này phải coi là BLOCK_STRONG.
-
-  2) BLOCK_SOFT:
-     - Lời nói thiếu tôn trọng, mỉa mai, xúc phạm nhưng không quá nghiêm trọng
-     - Drama, toxic vừa phải, chửi nhẹ, bóng gió nhưng không đến mức cực kỳ độc hại
-     → Những cái này có thể xoá tin nhắn nhưng không cần timeout.
-
-  3) ALLOW:
-     - Trêu đùa nhẹ nhàng giữa bạn bè, không hạ nhục nghiêm trọng
-     - Than phiền, cằn nhằn, nói hơi gắt nhưng không đi quá giới hạn
-     - Khi bạn không chắc chắn → HÃY CHỌN ALLOW.
+  1) BLOCK_STRONG: chửi tục nặng, miệt thị nhóm yếu thế, hate speech, đe doạ nghiêm trọng.
+  2) BLOCK_SOFT: xúc phạm nhẹ, nói chuyện thiếu tôn trọng nhưng không quá nghiêm trọng.
+  3) ALLOW: trêu đùa nhẹ, góp ý hơi gắt, hoặc khi bạn không chắc.
 
 Yêu cầu:
-- TRẢ LỜI DUY NHẤT MỘT DÒNG, dạng:
+- TRẢ LỜI DUY NHẤT 1 DÒNG, dạng:
   LEVEL|LÝ_DO_NGẮN_GỌN
-- LEVEL chỉ có thể là một trong: BLOCK_STRONG, BLOCK_SOFT, ALLOW
-- LÝ_DO_NGẮN_GỌN viết tiếng Việt, tối đa 15 từ.
+- LEVEL ∈ {BLOCK_STRONG, BLOCK_SOFT, ALLOW}
+- LÝ_DO_NGẮN_GỌN tiếng Việt, tối đa ~15 từ.
 
-Ví dụ:
-BLOCK_STRONG|Miệt thị chủng tộc nặng
-BLOCK_SOFT|Chửi nhẹ, có thể hơi xúc phạm
-ALLOW|Chỉ trêu đùa nhẹ
-
-Tin nhắn người dùng:
+Tin nhắn:
 """${content}"""
 `.trim();
 
@@ -170,12 +141,11 @@ Tin nhắn người dùng:
     const upper = raw.toUpperCase();
     const [levelRaw] = upper.split('|');
     const level = levelRaw.trim();
-    const reason = raw.split('|')[1]?.trim() || ''; // reason bản gốc giữ dấu
+    const reason = raw.split('|')[1]?.trim() || '';
 
     if (!['BLOCK_STRONG', 'BLOCK_SOFT', 'ALLOW'].includes(level)) {
       return { level: 'ALLOW', reason: '' };
     }
-
     return { level, reason };
   } catch (err) {
     console.error('Lỗi gọi Gemini:', err);
@@ -198,163 +168,133 @@ client.once('ready', () => {
   console.log(`🔥 Bot đã online: ${client.user.tag}`);
 });
 
-// helper: kiểm tra user có quyền mod không (để sau này nếu cần)
+// just in case nếu sau này cần
 function isModerator(member) {
   if (!member) return false;
   return member.permissions.has(PermissionsBitField.Flags.ManageMessages);
 }
 
-// ====== QUẢN LÝ VI PHẠM & TIMEOUT (chỉ với HARD keyword) ======
-const userViolations = new Map(); // userId -> { warnings, lastAt }
+// ====== QUẢN LÝ VI PHẠM (HARD keyword → ban) ======
+const userViolations = new Map(); // userId -> { count, lastAt }
 const VIOLATION_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 tiếng
+const BAN_THRESHOLD = 20; // chửi bậy hard >= 20 lần trong 2h → auto ban
 
-// 4 mốc: 5, 10, 15, 20
-const PENALTY_STEPS = [
-  { threshold: 5, durationMs: 3 * 60 * 1000 },      // 3p
-  { threshold: 10, durationMs: 5 * 60 * 1000 },     // 5p
-  { threshold: 15, durationMs: 10 * 60 * 1000 },    // 10p
-  { threshold: 20, durationMs: 60 * 60 * 1000 },    // 1h
-];
+// Xử lý vi phạm (xoá + reply vui vui, và nếu HARD keyword thì đếm & có thể ban)
+async function handleViolation(message, options) {
+  const {
+    isHardKeyword = false,
+    baseReason = 'Nội dung không phù hợp với nội quy server.',
+    sourceTag = 'UNKNOWN',
+  } = options || {};
 
-function computePenalty(warnings) {
-  let currentStep = null;
-  for (const step of PENALTY_STEPS) {
-    if (warnings >= step.threshold) {
-      currentStep = step;
-    }
-  }
-  const nextStep = PENALTY_STEPS.find((s) => s.threshold > warnings) || null;
-  return {
-    timeoutMs: currentStep ? currentStep.durationMs : 0,
-    currentStep,
-    nextStep,
-  };
-}
-
-// Xử lý vi phạm (xoá, DM, timeout nếu là HARD keyword)
-async function handleViolation(message, severity, baseReason, sourceTag) {
   const user = message.author;
   const guild = message.guild;
-  const member = message.member;
+  const channel = message.channel;
   const userId = user.id;
 
   const serverName = guild?.name || 'server';
 
-  // chỉ HARD keyword mới tăng cảnh báo + timeout
-  const isHardKeyword = severity === 'STRONG' && sourceTag === 'LIST_HARD';
-
-  let warnings = 0;
-  let penaltyInfo = { timeoutMs: 0, currentStep: null, nextStep: null };
+  // 1) Đếm vi phạm (chỉ với HARD keyword)
+  let count = 0;
+  let remaining = null;
+  let shouldBan = false;
 
   if (isHardKeyword) {
     const now = Date.now();
-    const record = userViolations.get(userId) || { warnings: 0, lastAt: 0 };
+    const record = userViolations.get(userId) || { count: 0, lastAt: 0 };
 
-    // reset nếu im > 2h
+    // nếu lần trước > 2h → reset
     if (record.lastAt && now - record.lastAt > VIOLATION_WINDOW_MS) {
-      record.warnings = 0;
+      record.count = 0;
     }
 
-    record.warnings += 1;
+    record.count += 1;
     record.lastAt = now;
     userViolations.set(userId, record);
 
-    warnings = record.warnings;
-    penaltyInfo = computePenalty(warnings);
+    count = record.count;
+    if (count >= BAN_THRESHOLD) {
+      shouldBan = true;
+      remaining = 0;
+    } else {
+      remaining = BAN_THRESHOLD - count;
+    }
+
+    console.log(
+      `⚠️ HARD VIOLATION từ ${user.tag} (${sourceTag}) – count=${count}/${BAN_THRESHOLD}`
+    );
+  } else {
+    console.log(
+      `⚠️ SOFT/AI VIOLATION từ ${user.tag} (${sourceTag}) – không tính vào ban`
+    );
   }
 
-  // 1) Xoá tin nhắn
+  // 2) Gửi message kiểu “mồm đi hơi xa”
+  const reasonText = baseReason;
+
+  let extraLine = '';
+  if (isHardKeyword) {
+    if (!shouldBan && remaining !== null) {
+      extraLine = `\n👉 Thử mồm hư thêm **${remaining}** lần nữa đi, xem như nào 😏`;
+    } else if (shouldBan) {
+      extraLine = `\n👉 Mồm hư quá nhiều, tao chịu.`;
+    }
+  }
+
+  try {
+    const reply = await message.reply({
+      content:
+        `🚫 Mồm đi hơi xa rồi đó <@${userId}>.\n` +
+        `> Lý do: ${reasonText}` +
+        extraLine,
+      allowedMentions: { repliedUser: false },
+    });
+
+    // auto xoá message cảnh báo sau 5s cho đỡ rác
+    setTimeout(() => {
+      reply.delete().catch(() => {});
+    }, 5000);
+  } catch (err) {
+    console.error('Không gửi được reply cảnh báo:', err);
+  }
+
+  // 3) Xoá tin nhắn gốc
   try {
     await message.delete();
   } catch (err) {
     console.error('Không xoá được tin nhắn vi phạm:', err);
   }
 
-  // 2) Soạn lý do + cảnh báo
-  const reasonText =
-    baseReason ||
-    (severity === 'STRONG'
-      ? 'Nội dung bị đánh giá là xúc phạm/độc hại.'
-      : 'Nội dung có thể chưa phù hợp với nội quy server.');
-
-  let extraWarningText = '';
-
-  if (isHardKeyword) {
-    const { nextStep } = penaltyInfo;
-
-    if (warnings < PENALTY_STEPS[0].threshold) {
-      const remaining = PENALTY_STEPS[0].threshold - warnings;
-      extraWarningText =
-        `\n\n⚠️ Cảnh báo: Bạn đã vi phạm **${warnings}** lần (trong khoảng thời gian gần đây).` +
-        ` Nếu còn vi phạm thêm **${remaining}** lần nữa, bạn sẽ bị hệ thống khoá chat tạm thời.`;
-    } else if (nextStep) {
-      const remaining = nextStep.threshold - warnings;
-      extraWarningText =
-        `\n\n⚠️ Bạn đã vi phạm **${warnings}** lần. Nếu tiếp tục vi phạm thêm **${remaining}** lần nữa, ` +
-        `hình thức xử lý sẽ bị nâng nặng hơn.`;
-    } else {
-      extraWarningText =
-        `\n\n⚠️ Bạn đã vi phạm rất nhiều lần trong khoảng thời gian gần đây. ` +
-        `Nếu tiếp tục, bạn có thể bị xử lý nặng hơn (kick/ban khỏi server).`;
-    }
-  }
-
-  // 3) DM cho user
-  try {
-    await user.send(
-      `🚫 Tin nhắn của bạn trong server **${serverName}** đã bị xoá.\n` +
-      `> Nội dung: "${message.content}"\n` +
-      `> Lý do: ${reasonText}` +
-      (severity === 'STRONG'
-        ? `\n\nVui lòng chú ý cách dùng từ khi chat trong server.`
-        : '') +
-      extraWarningText
-    );
-  } catch (err) {
-    console.error('Không DM được cho user (có thể họ tắt DM):', err);
-  }
-
-  // Nếu không phải HARD keyword → không timeout, chỉ log
-  if (!isHardKeyword) {
-    console.log(
-      `⚠️ Vi phạm mức ${severity} từ ${user.tag} (${sourceTag}): ${message.content}`
-    );
-    return;
-  }
-
-  // 4) HARD keyword → nếu đủ ngưỡng thì timeout
-  const { timeoutMs } = penaltyInfo;
-
-  if (timeoutMs > 0 && member && member.moderatable) {
+  // 4) Nếu đạt ngưỡng BAN_THRESHOLD và là HARD keyword → ban
+  if (
+    isHardKeyword &&
+    shouldBan &&
+    guild &&
+    guild.members.me?.permissions.has(PermissionsBitField.Flags.BanMembers)
+  ) {
     try {
-      await member.timeout(
-        timeoutMs,
-        `Vi phạm nội quy (${sourceTag}): ${reasonText}`
-      );
-      console.log(
-        `⏱ Đã timeout ${user.tag} trong ${Math.round(
-          timeoutMs / 60000
-        )} phút (tổng vi phạm keyword: ${warnings}).`
-      );
+      await guild.members.ban(userId, {
+        reason: `Auto-ban: mồm hư quá nhiều (${sourceTag}, ${count} lần trong 2h)`,
+      });
 
-      // thông báo nhẹ trong channel
+      // thông báo 1 câu ngắn trong kênh
       try {
-        await message.channel.send(
-          `🚫 <@${user.id}> đã bị tạm khoá chat do vi phạm nội quy nhiều lần.`
+        await channel.send(
+          `⛔ <@${userId}> đã bị auto-ban vì mồm đi hơi xa.`
         );
-      } catch (err) {
+      } catch {
         // ignore
       }
+
+      // clear record
+      userViolations.delete(userId);
+      console.log(`⛔ ĐÃ BAN ${user.tag} do vượt quá BAN_THRESHOLD.`);
     } catch (err) {
-      console.error('Không timeout được member (thiếu quyền?):', err);
+      console.error('Không ban được user (thiếu quyền?):', err);
     }
-  } else if (!member || !member.moderatable) {
+  } else if (isHardKeyword && shouldBan && guild) {
     console.warn(
-      `⚠️ Không thể timeout ${user.tag} (có thể bot thiếu quyền hoặc user cao role hơn).`
-    );
-  } else {
-    console.log(
-      `⚠️ Vi phạm HARD keyword từ ${user.tag} (chưa đủ ngưỡng timeout). Tổng vi phạm: ${warnings}`
+      `⚠️ Bot không có quyền BanMembers nên không ban được ${user.tag}.`
     );
   }
 }
@@ -372,58 +312,59 @@ client.on('messageCreate', async (message) => {
       const firstWord = content.split(/\s+/)[0];
 
       if (!allowedCommands.includes(firstWord)) {
-        // Sai form lệnh → xoá + DM, KHÔNG tính cảnh báo keyword
-        await handleViolation(
-          message,
-          'SOFT',
-          'Lệnh không đúng form, vui lòng chỉ dùng các lệnh hợp lệ trong server.',
-          'CMD_FORM'
-        );
+        // Sai form lệnh → xoá + reply, KHÔNG tính vào ban
+        await handleViolation(message, {
+          isHardKeyword: false,
+          baseReason:
+            'Lệnh không đúng form, hãy dùng đúng slash command được cho phép.',
+          sourceTag: 'CMD_FORM',
+        });
       }
       return;
     }
 
-    // 2) HARD keyword → xoá + DM + tính cảnh báo + timeout theo ngưỡng
+    // 2) HARD keyword → xoá + reply + đếm + có thể ban
     if (containsHardBanned(content)) {
-      await handleViolation(
-        message,
-        'STRONG',
-        'Sử dụng từ ngữ tục tĩu/nặng nằm trong danh sách cấm của server.',
-        'LIST_HARD'
-      );
+      await handleViolation(message, {
+        isHardKeyword: true,
+        baseReason:
+          'Sử dụng từ ngữ tục tĩu/nặng nằm trong danh sách cấm của server.',
+        sourceTag: 'LIST_HARD',
+      });
       return;
     }
 
-    // 3) SOFT keyword → nhờ AI phân loại (chỉ xoá + DM, không tính cảnh báo)
+    // 3) SOFT keyword → mới nhờ AI check (không tính vào ban)
     if (containsSoftFlag(content)) {
       const { level, reason } = await analyzeByGemini(content);
 
       if (level === 'ALLOW') return;
 
       if (level === 'BLOCK_STRONG') {
-        await handleViolation(
-          message,
-          'STRONG',
-          reason || 'Nội dung độc hại/mang tính miệt thị hoặc xúc phạm nghiêm trọng.',
-          'AI_BLOCK_STRONG'
-        );
+        await handleViolation(message, {
+          isHardKeyword: false,
+          baseReason:
+            reason ||
+            'Nội dung độc hại/mang tính miệt thị hoặc xúc phạm nghiêm trọng.',
+          sourceTag: 'AI_BLOCK_STRONG',
+        });
         return;
       }
 
       if (level === 'BLOCK_SOFT') {
-        await handleViolation(
-          message,
-          'SOFT',
-          reason || 'Nội dung có thể chưa phù hợp, vui lòng chú ý cách dùng từ.',
-          'AI_BLOCK_SOFT'
-        );
+        await handleViolation(message, {
+          isHardKeyword: false,
+          baseReason:
+            reason || 'Nội dung có thể chưa phù hợp, vui lòng chú ý cách dùng từ.',
+          sourceTag: 'AI_BLOCK_SOFT',
+        });
         return;
       }
 
       return;
     }
 
-    // 4) Không chứa hard / soft keyword → bỏ qua, không gọi AI (tiết kiệm API)
+    // 4) Không chứa hard / soft keyword → bỏ qua, không gọi AI
     return;
   } catch (err) {
     console.error('Lỗi chung trong messageCreate:', err);
