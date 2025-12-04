@@ -115,7 +115,7 @@ async function analyzeByGemini(content) {
   if (content.length > 400) return { level: 'ALLOW', reason: '' };
 
   const prompt = `
-Bạn là bộ lọc nội dung cho một server Discord bạn bè.
+Bạn là bộ lọc nội dung cho một server Discord của bạn bè.
 
 Nhiệm vụ:
 - Phân loại tin nhắn thành 3 mức:
