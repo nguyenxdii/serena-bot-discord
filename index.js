@@ -1,141 +1,120 @@
-// index.js
-
-// Load biến môi trường từ .env
 require('dotenv').config();
 
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, Partials } = require('discord.js');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Lấy token & api key từ .env
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-// Kiểm tra token
 if (!DISCORD_TOKEN) {
-    console.error('❌ Thiếu DISCORD_TOKEN trong file .env');
+    console.error('❌ Thiếu DISCORD_TOKEN trong .env');
     process.exit(1);
 }
 
-// Khởi tạo client Discord
+// Khởi tạo Discord bot
 const client = new Client({
     intents: [
-        GatewayIntentBits.Guilds,          // join server
-        GatewayIntentBits.GuildMessages,   // nhận message trong server
-        GatewayIntentBits.MessageContent   // đọc nội dung message
-    ]
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent
+    ],
+    partials: [Partials.Message],
 });
 
-// Danh sách lệnh đúng form
-// Ví dụ: chỉ cho phép /vidu, sau này bạn thêm thoải mái
+// Lệnh Slash hợp lệ
 const allowedCommands = ['/vidu'];
 
-// --------- CẤU HÌNH GEMINI (tùy chọn) ---------
-let model = null;
-const useGemini = !!GEMINI_API_KEY;
+// Danh sách từ cấm kiểm tra nhanh (nếu có match → xoá luôn)
+const bannedWords = ['địt', 'lồn', 'cặc', 'chịch', 'đụ', 'fuck', 'bitch', 'dm', 'dmm', 'vcl'];
 
-if (useGemini) {
+// Cấu hình Gemini 2.5 Flash
+let model = null;
+if (GEMINI_API_KEY) {
     const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    console.log('✅ Gemini đã được bật');
+    model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    console.log('🤖 Gemini 2.5 Flash đã được bật!');
 } else {
-    console.log('ℹ️ Không có GEMINI_API_KEY -> chỉ dùng lọc form đơn giản, không dùng AI');
+    console.log('⚠️ Không có API KEY → chỉ lọc từ cấm & lệnh sai');
 }
 
-/**
- * Hàm dùng Gemini để xem tin nhắn có "xấu" không
- * Trả về true = nên xóa, false = cho qua
- */
-async function shouldBlockWithGemini(text) {
+async function shouldBlockWithGemini(content) {
     if (!model) return false;
 
     const prompt = `
-Bạn là bộ lọc tin nhắn cho server Discord Việt Nam.
-Hãy phân loại tin nhắn có nên bị xoá không.
+Bạn là bộ lọc tin nhắn Discord Việt Nam.
+BLOCK nếu:
+- Chửi tục
+- Xúc phạm nặng
+- Phân biệt chủng tộc
+- 18+, tục tĩu
+- Spam, scam, quảng cáo xấu
 
-Tiêu chí XOÁ (BLOCK):
-- Chửi thề nặng, xúc phạm người khác
-- Phân biệt chủng tộc, giới tính, tôn giáo
-- Gạ gẫm 18+, nội dung quá nhạy cảm
-- Spam, quảng cáo lộ liễu (link scam, cờ bạc, ...)
+OK nếu:
+- Nội dung lịch sự, bình thường
+- Chỉ tán gẫu, ký tự vô nghĩa
 
-Chỉ trả lời đúng một từ:
-- "BLOCK" nếu nên xoá
-- "OK" nếu được phép giữ lại
+Chỉ trả lời BLOCK hoặc OK.
 
-Tin nhắn: "${text}"
-    `.trim();
+Tin nhắn: "${content}"
+`.trim();
 
     try {
         const result = await model.generateContent(prompt);
-        const reply = result.response.text().toLowerCase();
+        const reply = result.response.text().trim().toLowerCase();
 
-        // console.log('Gemini trả lời:', reply);
+        console.log(`🔎 Gemini đánh giá: ${reply} → (${content})`);
 
-        if (reply.includes('block')) return true;
-        return false;
+        return reply.includes("block");
     } catch (err) {
-        console.error('Lỗi gọi Gemini:', err);
-        return false; // nếu lỗi thì cho qua, tránh crash bot
+        console.error("❌ Lỗi AI:", err);
+        return false; // Để tránh crash bot
     }
 }
 
-// --------- EVENT DISCORD ---------
-
-// Khi bot online
-client.once('clientReady', () => {
-    console.log(`✅ Bot đã đăng nhập: ${client.user.tag}`);
+client.on('ready', () => {
+    console.log(`🔥 Bot đã online: ${client.user.tag}`);
 });
 
-// Khi có tin nhắn mới
 client.on('messageCreate', async (message) => {
-    // Bỏ qua tin của bot
     if (message.author.bot) return;
 
-    const content = message.content.trim();
-    if (content.length === 0) return;
+    const content = message.content.toLowerCase().trim();
+    if (!content) return;
 
-    // 1) LỌC LỆNH SAI FORM (bắt đầu bằng "/")
+    // ✳️ Nếu là slash command
     if (content.startsWith('/')) {
-        // Lấy từ đầu tiên, vd: "/vidu", "/setting"
         const firstWord = content.split(/\s+/)[0];
-
-        // Nếu không thuộc danh sách allowedCommands -> xoá
         if (!allowedCommands.includes(firstWord)) {
-            try {
-                await message.delete(); // xoá tin nhắn sai form
-
-                await message.channel.send(
-                    `⚠️ <@${message.author.id}> lệnh không đúng form. Chỉ cho phép: ${allowedCommands.join(', ')}`
-                );
-
-                console.log(`🗑 Đã xoá lệnh sai form từ ${message.author.tag}: ${content}`);
-            } catch (err) {
-                console.error('Lỗi khi xoá tin nhắn sai form:', err);
-            }
+            await message.delete().catch(() => {});
+            await message.channel.send(
+                `⚠️ <@${message.author.id}> Lệnh không đúng! Chỉ cho phép: ${allowedCommands.join(', ')}`
+            );
+            console.log(`❌ Xoá lệnh sai: ${content}`);
         }
-
-        // xử lý xong lệnh thì thôi, không check Gemini nữa
         return;
     }
 
-    // 2) (TUỲ CHỌN) LỌC NỘI DUNG BẰNG GEMINI
-    // Chỉ chạy nếu bạn có GEMINI_API_KEY
-    if (useGemini) {
-        try {
-            const shouldBlock = await shouldBlockWithGemini(content);
+    // ✳️ Nếu chứa từ bị cấm → xoá ngay
+    if (bannedWords.some(w => content.includes(w))) {
+        await message.delete().catch(() => {});
+        await message.channel.send(
+            `🚫 <@${message.author.id}> Không được nói tục trong server!`
+        );
+        console.log(`🗑 Xóa vì từ cấm: ${content}`);
+        return;
+    }
 
-            if (shouldBlock) {
-                await message.delete();
-                await message.channel.send(
-                    `🚫 <@${message.author.id}> tin nhắn của bạn vi phạm quy tắc và đã bị xoá.`
-                );
-                console.log(`🤖 Gemini đề xuất xoá tin nhắn từ ${message.author.tag}: ${content}`);
-            }
-        } catch (err) {
-            console.error('Lỗi khi xử lý Gemini:', err);
+    // ✳️ Nếu có Gemini thì nhờ đánh giá thêm
+    if (model) {
+        const blocked = await shouldBlockWithGemini(content);
+        if (blocked) {
+            await message.delete().catch(() => {});
+            await message.channel.send(
+                `🚨 <@${message.author.id}> Nội dung vi phạm quy tắc và đã bị xoá!`
+            );
+            console.log(`💥 AI BLOCK: ${content}`);
         }
     }
 });
 
-// Đăng nhập bot
 client.login(DISCORD_TOKEN);
