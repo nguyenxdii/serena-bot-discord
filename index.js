@@ -1,5 +1,3 @@
-// index.js - bản nhẹ, không dùng Gemini
-
 require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 
@@ -9,13 +7,8 @@ if (!DISCORD_TOKEN) {
   process.exit(1);
 }
 
-// ====== CẤU HÌNH LỆNH ĐÚNG FORM ======
 const allowedCommands = ['/vidu']; 
-// Sau này muốn thêm lệnh hợp lệ thì thêm, ví dụ:
-// const allowedCommands = ['/vidu', '/play', '/stop'];
 
-// ====== LIST TỪ CHỬI BẬY / TỪ CẦN CHẶN ======
-// 👉 THÊM / BỚT TỪ Ở ĐÂY CHO DỄ TÙY CHỈNH
 const bannedWords = [
   // --- Nhóm ĐM / ĐCM ---
   'đm',
@@ -106,25 +99,21 @@ const bannedWords = [
   'ccmn',
   'cmm', // con mẹ mày (cẩn thận chặn nhầm cm = centimet)
   'đm',
+  'vcl'
 ];
 
-// Hàm normalize: bỏ dấu + lowercase để check dễ hơn
 function normalize(text) {
   return text
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, ''); // bỏ dấu tiếng Việt
+    .replace(/[\u0300-\u036f]/g, '');
 }
 
-// Kiểm tra nội dung có chứa từ bậy hay không
 function containsBannedWord(text) {
   const norm = normalize(text);
-
-  // dùng includes cho đơn giản, vì đa số từ bậy khá đặc trưng
   return bannedWords.some((w) => norm.includes(w));
 }
 
-// ====== KHỞI TẠO DISCORD CLIENT ======
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -133,24 +122,19 @@ const client = new Client({
   ]
 });
 
-// Bot online
-client.once('clientReady', () => {
+client.once('ready', () => {
   console.log(`🔥 Bot đã online: ${client.user.tag}`);
 });
 
-// Xử lý tin nhắn
 client.on('messageCreate', async (message) => {
-  // bỏ qua bot
   if (message.author.bot) return;
 
   const content = message.content.trim();
   if (!content) return;
 
-  // 1) LỆNH BẮT ĐẦU BẰNG "/"
   if (content.startsWith('/')) {
-    const firstWord = content.split(/\s+/)[0]; // "/vidu", "/play", ...
+    const firstWord = content.split(/\s+/)[0];
 
-    // nếu KHÔNG nằm trong danh sách allowedCommands → xoá
     if (!allowedCommands.includes(firstWord)) {
       try {
         await message.delete();
@@ -162,12 +146,9 @@ client.on('messageCreate', async (message) => {
         console.error('Lỗi khi xoá lệnh sai form:', err);
       }
     }
-
-    // lệnh đã xử lý xong thì return, không check chửi bậy nữa
     return;
   }
 
-  // 2) LỌC TIN NHẮN CHỬI BẬY BẰNG LIST TỪ
   if (containsBannedWord(content)) {
     try {
       await message.delete();
@@ -181,5 +162,4 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-// Login bot
 client.login(DISCORD_TOKEN);
