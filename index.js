@@ -7,101 +7,7 @@ if (!DISCORD_TOKEN) {
   process.exit(1);
 }
 
-const allowedCommands = ['/vidu']; 
-
-const bannedWords = [
-  // --- Nhóm ĐM / ĐCM ---
-  'đm',
-  'dm',
-  'dmm',
-  'đmm',
-  'đkm',
-  'dkm',
-  'đcm',
-  'dcm',
-  'đcmm',
-  'dcmm',
-  'đm',
-  'vkl',
-  'vcl',
-  'vl',
-  'vcc',
-  'vc', // Cẩn thận từ này có thể chặn "vợ chồng" viết tắt
-  
-  // --- Nhóm Vãi ---
-  'vãi lồn',
-  'vãi lon',
-  'vãi cả lồn',
-  'vãi cứt',
-  'vãi l',
-  'vai lon',
-  
-  // --- Nhóm Bộ phận nhạy cảm (Nam/Nữ) ---
-  'cặc',
-  'cak',
-  'kak',
-  'kac',
-  'lồn',
-  'loz',
-  'lìn',
-  'buồi',
-  'buoi',
-  'dái',
-  'dai',
-  
-  // --- Nhóm Địt / Đụ ---
-  'địt',
-  'dit',
-  'đụ',
-  'du me',
-  'dume',
-  'dit me',
-  'ditme',
-  'chịch',
-  'xoạc',
-  
-  // --- Nhóm Xúc phạm trí tuệ / Con vật ---
-  'óc chó',
-  'oc cho',
-  'óc lợn',
-  'oc lon',
-  'con chó',
-  'chó đẻ',
-  'cho de',
-  'chó má',
-  'ngu lồn',
-  'ngu lon',
-  'ngu vcl',
-  
-  // --- Nhóm Khác (Phò, Đĩ, ...) ---
-  'mẹ mày',
-  'me may',
-  'mịa',
-  'phò',
-  'pho`',
-  'cave',
-  'đĩ',
-  'di~',
-  'hãm l',
-  
-  // --- Tiếng Anh phổ biến ---
-  'fuck',
-  'fck',
-  'bitch',
-  'shit',
-  'cock',
-  'dick',
-  'pussy',
-  'asshole',
-  
-  // --- Teencode / Viết tắt 3 chữ ---
-  'clmm',
-  'ccmn',
-  'cmm', // con mẹ mày (cẩn thận chặn nhầm cm = centimet)
-  'đm',
-  'vcl'
-];
-
+// ----- HÀM NORMALIZE ĐỂ DÙNG CHUNG -----
 function normalize(text) {
   return text
     .toLowerCase()
@@ -109,10 +15,38 @@ function normalize(text) {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+// ====== LIST TỪ GỐC ======
+const rawBannedWords = [
+  'đm', 'dm', 'dmm', 'đmm', 'đkm', 'dkm', 'đcm', 'dcm', 'đcmm', 'dcmm',
+  'vkl', 'vcl', 'vl', 'vcc', 'vc',
+
+  'vãi lồn', 'vãi lon', 'vãi cả lồn', 'vãi cứt', 'vãi l', 'vai lon',
+
+  'cặc', 'cak', 'kak', 'kac', 'lồn', 'loz', 'lìn', 'buồi', 'buoi', 'dái', 'dai',
+
+  'địt', 'dit', 'đụ', 'du me', 'dume', 'dit me', 'ditme', 'chịch', 'xoạc',
+
+  'óc chó', 'oc cho', 'óc lợn', 'oc lon', 'con chó', 'chó đẻ', 'cho de',
+  'chó má', 'ngu lồn', 'ngu lon', 'ngu vcl',
+
+  'mẹ mày', 'me may', 'mịa', 'phò', 'pho`', 'cave', 'đĩ', 'di~', 'hãm l',
+
+  'fuck', 'fck', 'bitch', 'shit', 'cock', 'dick', 'pussy', 'asshole',
+
+  'clmm', 'ccmn', 'cmm', 'vcl'
+];
+
+// ====== LIST SAU KHI ĐÃ BỎ DẤU + LOWERCASE ======
+const bannedWords = rawBannedWords.map((w) => normalize(w));
+
+// Kiểm tra nội dung có chứa từ bậy hay không
 function containsBannedWord(text) {
-  const norm = normalize(text);
-  return bannedWords.some((w) => norm.includes(w));
+  const norm = normalize(text);               // tin nhắn đã bỏ dấu
+  return bannedWords.some((w) => norm.includes(w)); // so với list đã bỏ dấu
 }
+
+// ====== PHẦN CÒN LẠI GIỮ NGUYÊN ======
+const allowedCommands = ['/vidu'];
 
 const client = new Client({
   intents: [
