@@ -125,7 +125,6 @@ async function getRandomSimilarSong(baseSong) {
     });
     if (!results || results.length === 0) return null;
 
-    // lọc bỏ bài trùng URL (nếu có), random 1 bài
     const filtered = results.filter(r => r.url !== baseSong.url);
     const list = filtered.length > 0 ? filtered : results;
     const idx = Math.floor(Math.random() * list.length);
@@ -373,7 +372,6 @@ client.on('messageCreate', async (message) => {
 
     // ==== LUẬT CHO CHANNEL 🎶︱music-request ====
     if (message.channel.id === MUSIC_REQUEST_CHANNEL_ID) {
-      // 1) Cấm chat thường → chỉ slash / text command
       if (!content.startsWith('/')) {
         await handleViolation(message, {
           isHardKeyword: false,
@@ -385,7 +383,6 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      // 2) Cho phép một số lệnh text (nếu ai đó vẫn dùng Rythm)
       const allowedRythmCommands = [
         '/play',
         '/stop',
@@ -409,7 +406,6 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      // 3) Vẫn lọc chửi bậy trong kênh nhạc
       if (containsBannedWord(content)) {
         await handleViolation(message, {
           isHardKeyword: true,
@@ -471,7 +467,6 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    // Lấy / tạo queue
     let queue = queues.get(interaction.guildId);
 
     if (!queue) {
@@ -497,7 +492,6 @@ client.on('interactionCreate', async (interaction) => {
         songs: [],
       };
 
-      // Khi bài hiện tại phát xong
       player.on(AudioPlayerStatus.Idle, () => {
         queue.songs.shift();
         if (queue.songs.length > 0) {
@@ -544,7 +538,6 @@ client.on('interactionCreate', async (interaction) => {
       return;
     }
 
-    // Thêm vào queue
     queue.songs.push(songInfo);
 
     if (
@@ -572,7 +565,7 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     const current = queue.songs[0];
-    queue.songs.shift(); // bỏ bài hiện tại
+    queue.songs.shift();
 
     if (queue.songs.length > 0) {
       await playSong(interaction.guildId);
@@ -580,7 +573,6 @@ client.on('interactionCreate', async (interaction) => {
         `⏭ Đã chuyển sang bài: **${queue.songs[0].title}**`
       );
     } else {
-      // không còn bài trong queue → random bài tương tự
       const similar = await getRandomSimilarSong(current);
       if (similar) {
         queue.songs.push(similar);
