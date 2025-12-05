@@ -15,13 +15,12 @@ if (!DISCORD_TOKEN) {
 
 // ====== CẤU HÌNH ======
 const allowedCommands = ['/vidu']; // thêm lệnh hợp lệ nếu muốn
-const WARNING_LIFETIME_MS = 10_000; // cảnh báo giữ 10s rồi xóa
+const WARNING_LIFETIME_MS = 15_000; // cảnh báo giữ 15s rồi xóa
 
 // ID kênh 🎶︱music-request (chỉ cho dùng lệnh Rythm)
 const MUSIC_REQUEST_CHANNEL_ID = '1389843995135315979';
-// ID kênh 📢︱chung 
-// const GENERAL_CHAT_CHANNEL_ID = '1389842864594227270';
-
+// ID kênh 📢︱chung
+const GENERAL_CHANNEL_ID = '1389842864594227270';
 
 // ====== HÀM NORMALIZE ======
 function normalize(text) {
@@ -32,28 +31,6 @@ function normalize(text) {
 }
 
 // ====== LIST TỪ CẤM (HARD KEYWORD) ======
-// Sau này bạn muốn chia 3 lớp thì chỉ cần tách list này ra thành nhiều list nhỏ.
-// const rawBannedWords = [
-//   'đm', 'dm', 'dmm', 'đmm', 'đkm', 'dkm', 'đcm', 'dcm', 'đcmm', 'dcmm',
-//   'vkl', 'vcl', 'vl', 'vcc', 'vc',
-
-//   'vãi lồn', 'vãi lon', 'vãi cả lồn', 'vãi cứt', 'vãi l', 'vai lon',
-
-//   'cặc', 'cak', 'kak', 'kac', 'lồn', 'loz', 'lìn', 'buồi', 'buoi', 'dái', 'dai',
-
-//   'địt', 'dit', 'đụ', 'du me', 'dume', 'dit me', 'ditme', 'chịch', 'xoạc',
-
-//   'óc chó', 'oc cho', 'óc lợn', 'oc lon', 'con chó', 'chó đẻ', 'cho de',
-//   'chó má', 'ngu lồn', 'ngu lon', 'ngu vcl',
-
-//   'mẹ mày', 'me may', 'mịa', 'phò', 'pho`', 'cave', 'đĩ', 'di~', 'hãm l',
-
-//   'fuck', 'fck', 'bitch', 'shit', 'cock', 'dick', 'pussy', 'asshole',
-
-//   'nigga', 'nigger',
-
-//   'clmm', 'ccmn', 'cmm',
-// ];
 const rawBannedWords = [
   // === TIẾNG VIỆT CỰC MẠNH + TEENCODE ===
   "đm","dm","dmm","đmm","đkm","dkm","đcm","dcm","đcmm","dcmm","đcmnr","dcmnr","đmcs","dmcs","đmm","djt","djtm","djtme","ditme","dit me","ditm","djtmm","địt mẹ","dit mẹ","đụ","du ma","duma","du me","dume","đume","đuma",
@@ -68,7 +45,7 @@ const rawBannedWords = [
   "chó đẻ","do cho","mẹ mày","me may",
   "phò","phỏ","phó","ph0","ph0`","cave","ca ve","gái cave","đĩ","đĩ điếm","gái điếm","con đĩ","con di",
   "thằng mặt lồn","thang mat lon","đầu buồi","dau buoi",
-  
+
   // === PHÂN BIỆT CHỦNG TỘC / KỲ THỊ ===
   "nigger","nigga","niggas","neger","negro",
 
@@ -154,12 +131,11 @@ function computePenalty(count) {
 async function handleViolation(message, options) {
   const {
     isHardKeyword = false,
-    baseReason = 'Nội dung không phù hợp với nội quy server.',
+    baseReason = 'Một số từ bạn dùng hơi “mạnh” quá so với nội quy server 😅',
     sourceTag = 'UNKNOWN',
   } = options || {};
 
   const user = message.author;
-  const guild = message.guild;
   const channel = message.channel;
   const userId = user.id;
 
@@ -205,10 +181,10 @@ async function handleViolation(message, options) {
   if (isHardKeyword) {
     if (remaining > 0) {
       extraLine =
-        `\n👉 Còn **${remaining}** lần nữa là bị khóa mõm thiệt đó 😼`;
+        `\n👉 Còn **${remaining}** lần nữa là dính mute đó, nói chuyện nhẹ tay xíu nha.`;
     } else if (penaltyInfo.currentStep) {
       extraLine =
-        `\n👉 Mồm hư hơi nhiều rồi đó, tao đang **khóa mõm** nhẹ cho tỉnh người.`;
+        `\n👉 Dùng mấy từ hơi nặng tay hơi nhiều nên mình cho nghỉ chat nhẹ một lúc cho hạ nhiệt.`;
     }
   }
 
@@ -216,7 +192,7 @@ async function handleViolation(message, options) {
   try {
     const reply = await message.reply({
       content:
-        `🚫 Mồm đi hơi xa rồi đó <@${userId}>.\n` +
+        `🚫 Mồm hơi lố tay rồi đó <@${userId}>.\n` +
         `> Lý do: ${reasonText}` +
         extraLine,
       allowedMentions: { repliedUser: false },
@@ -243,13 +219,13 @@ async function handleViolation(message, options) {
       try {
         await member.timeout(
           penaltyInfo.timeoutMs,
-          `Auto-timeout do chửi bậy nhiều lần (${sourceTag}, ${count} lần)`
+          `Auto-timeout: dùng từ ngữ quá nặng nhiều lần (${sourceTag}, ${count} lần)`
         );
 
         const minutes = Math.round(penaltyInfo.timeoutMs / 60000);
-        // Thông báo này KHÔNG auto delete, để mọi người thấy rõ bị khóa mõm
+        // Thông báo này KHÔNG auto delete, để mọi người thấy rõ bị mute
         await channel.send(
-          `🔇 <@${userId}> tạm thời "câm nín" **${minutes} phút**. Suy nghĩ về cuộc đời đi 😎`
+          `🔇 <@${userId}> tạm thời bị mute **${minutes} phút**. Nghỉ tay xíu rồi chat tiếp cho vui nha.`
         );
       } catch (err) {
         console.error('Không timeout được user:', err);
@@ -267,18 +243,15 @@ client.on('messageCreate', async (message) => {
   try {
     // Cho phép Rythm, nhưng chặn bot khác trong kênh music-request
     const RYTHM_BOT_ID = '235088799074484224';
-    const GENERAL_CHANNEL_ID = '1389842864594227270'; // 💬︱chung
 
     if (message.author.bot) {
       // Nếu ở kênh music-request
       if (message.channel.id === MUSIC_REQUEST_CHANNEL_ID) {
-
         // Nếu bot này không phải Rythm → xoá
         if (message.author.id !== RYTHM_BOT_ID) {
           message.delete().catch(() => {});
         }
-
-        return; // bot không xử lý gì thêm
+        return;
       }
 
       return; // bot ở kênh khác thì bỏ qua
@@ -294,8 +267,8 @@ client.on('messageCreate', async (message) => {
         await handleViolation(message, {
           isHardKeyword: false,
           baseReason:
-            `Kênh này chỉ dùng lệnh nhạc thôi bạn êi 🎧\n` +
-            `Muốn tám thì qua kênh <#${GENERAL_CHANNEL_ID}> mà sủa nha 💬`,
+            `Kênh này chỉ để gọi nhạc thôi bạn ơi 🎧\n` +
+            `Muốn tám chuyện thì qua kênh <#${GENERAL_CHANNEL_ID}> cho đúng chỗ nha 💬`,
           sourceTag: 'CHANNEL_RULE',
         });
         return;
@@ -318,8 +291,8 @@ client.on('messageCreate', async (message) => {
         await handleViolation(message, {
           isHardKeyword: false,
           baseReason:
-            `Kênh này chỉ nhận lệnh của **Rythm** thôi nha 🎶\n` +
-            `Chat thường thì qua <#${GENERAL_CHANNEL_ID}> giùm cái 💬`,
+            `Ở đây chỉ nhận lệnh của **Rythm** thôi nha 🎶\n` +
+            `Nếu muốn thử lệnh khác hoặc chat linh tinh thì qua <#${GENERAL_CHANNEL_ID}> giùm cái 💬`,
           sourceTag: 'RYTHM_ONLY',
         });
         return;
@@ -330,7 +303,7 @@ client.on('messageCreate', async (message) => {
         await handleViolation(message, {
           isHardKeyword: true,
           baseReason:
-            'Sử dụng từ ngữ tục tĩu/nặng nằm trong danh sách cấm của server.',
+            'Một số từ trong tin nhắn hơi quá “mặn” so với kênh nhạc chill này.',
           sourceTag: 'LIST_HARD_MUSIC',
         });
         return;
@@ -350,7 +323,7 @@ client.on('messageCreate', async (message) => {
         await handleViolation(message, {
           isHardKeyword: false,
           baseReason:
-            'Lệnh không đúng form, hãy dùng đúng slash command được cho phép.',
+            'Lệnh này không nằm trong danh sách slash command được hỗ trợ ở server.',
           sourceTag: 'CMD_FORM',
         });
       }
@@ -362,7 +335,7 @@ client.on('messageCreate', async (message) => {
       await handleViolation(message, {
         isHardKeyword: true,
         baseReason:
-          'Sử dụng từ ngữ tục tĩu/nặng nằm trong danh sách cấm của server.',
+          'Một số từ trong tin nhắn hơi quá đà, đang nằm trong danh sách hạn chế của server.',
         sourceTag: 'LIST_HARD',
       });
       return;
