@@ -15,7 +15,7 @@ if (!DISCORD_TOKEN) {
 
 // ====== CẤU HÌNH ======
 const allowedCommands = ['/vidu']; // thêm lệnh slash hợp lệ nếu muốn
-const WARNING_LIFETIME_MS = 15_000; // cảnh báo giữ 15s rồi xóa
+const WARNING_LIFETIME_MS = 10_000; // ⚠️ cảnh báo giữ 10s rồi xóa
 
 // ID kênh 🎶︱music-request (chỉ cho dùng lệnh Rythm)
 const MUSIC_REQUEST_CHANNEL_ID = '1389843995135315979';
@@ -111,7 +111,6 @@ const PENALTY_STEPS = [
   { threshold: 5,  durationMs: 3  * 60 * 1000 },  // 5 lần → 3 phút
   { threshold: 10, durationMs: 5  * 60 * 1000 },  // 10 lần → 5 phút
   { threshold: 15, durationMs: 10 * 60 * 1000 },  // 15 lần → 10 phút
-  // cần thêm mốc nữa thì add vào đây
 ];
 
 function computePenalty(count) {
@@ -148,7 +147,6 @@ async function handleViolation(message, options) {
     const now = Date.now();
     const record = userViolations.get(userId) || { count: 0, lastAt: 0 };
 
-    // nếu im hơn 1h → reset đếm
     if (record.lastAt && now - record.lastAt > VIOLATION_WINDOW_MS) {
       record.count = 0;
     }
@@ -163,7 +161,7 @@ async function handleViolation(message, options) {
     if (penaltyInfo.nextStep) {
       remaining = penaltyInfo.nextStep.threshold - count;
     } else {
-      remaining = 0; // đã tới mốc cao nhất
+      remaining = 0;
     }
 
     console.log(
@@ -200,7 +198,7 @@ async function handleViolation(message, options) {
 
     setTimeout(() => {
       reply.delete().catch(() => {});
-    }, WARNING_LIFETIME_MS);
+    }, WARNING_LIFETIME_MS); // 10 giây
   } catch (err) {
     console.error('Không gửi được reply cảnh báo:', err);
   }
@@ -223,7 +221,6 @@ async function handleViolation(message, options) {
         );
 
         const minutes = Math.round(penaltyInfo.timeoutMs / 60000);
-        // Thông báo này KHÔNG auto delete, để mọi người thấy rõ bị mute
         await channel.send(
           `🔇 <@${userId}> tạm thời bị mute **${minutes} phút**. Nghỉ tay xíu rồi chat tiếp cho vui nha.`
         );
@@ -243,21 +240,16 @@ client.on('messageCreate', async (message) => {
   try {
     const RYTHM_BOT_ID = '235088799074484224';
 
-    // Bỏ qua DM cho chắc
     if (!message.guild) return;
 
     // Nếu là bot
     if (message.author.bot) {
-      // Nếu ở kênh music-request
       if (message.channel.id === MUSIC_REQUEST_CHANNEL_ID) {
-        // Nếu bot này không phải Rythm → xoá
         if (message.author.id !== RYTHM_BOT_ID) {
           message.delete().catch(() => {});
         }
         return;
       }
-
-      // bot ở kênh khác thì bỏ qua
       return;
     }
 
@@ -313,7 +305,6 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      // Lệnh Rythm hợp lệ → cho qua
       return;
     }
 
@@ -323,7 +314,6 @@ client.on('messageCreate', async (message) => {
     if (content.startsWith('/')) {
       const firstWord = content.split(/\s+/)[0];
       if (!allowedCommands.includes(firstWord)) {
-        // sai form lệnh → xoá + nhắc, nhưng không tính vào bộ đếm
         await handleViolation(message, {
           isHardKeyword: false,
           baseReason:
@@ -345,7 +335,7 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
-    // 3) Không nằm trong list → bỏ qua (không xoá, không gọi API)
+    // 3) Không nằm trong list → bỏ qua
     return;
   } catch (err) {
     console.error('Lỗi chung trong messageCreate:', err);
