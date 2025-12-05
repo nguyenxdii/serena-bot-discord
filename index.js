@@ -33,26 +33,65 @@ function normalize(text) {
 
 // ====== LIST TỪ CẤM (HARD KEYWORD) ======
 // Sau này bạn muốn chia 3 lớp thì chỉ cần tách list này ra thành nhiều list nhỏ.
+// const rawBannedWords = [
+//   'đm', 'dm', 'dmm', 'đmm', 'đkm', 'dkm', 'đcm', 'dcm', 'đcmm', 'dcmm',
+//   'vkl', 'vcl', 'vl', 'vcc', 'vc',
+
+//   'vãi lồn', 'vãi lon', 'vãi cả lồn', 'vãi cứt', 'vãi l', 'vai lon',
+
+//   'cặc', 'cak', 'kak', 'kac', 'lồn', 'loz', 'lìn', 'buồi', 'buoi', 'dái', 'dai',
+
+//   'địt', 'dit', 'đụ', 'du me', 'dume', 'dit me', 'ditme', 'chịch', 'xoạc',
+
+//   'óc chó', 'oc cho', 'óc lợn', 'oc lon', 'con chó', 'chó đẻ', 'cho de',
+//   'chó má', 'ngu lồn', 'ngu lon', 'ngu vcl',
+
+//   'mẹ mày', 'me may', 'mịa', 'phò', 'pho`', 'cave', 'đĩ', 'di~', 'hãm l',
+
+//   'fuck', 'fck', 'bitch', 'shit', 'cock', 'dick', 'pussy', 'asshole',
+
+//   'nigga', 'nigger',
+
+//   'clmm', 'ccmn', 'cmm',
+// ];
 const rawBannedWords = [
-  'đm', 'dm', 'dmm', 'đmm', 'đkm', 'dkm', 'đcm', 'dcm', 'đcmm', 'dcmm',
-  'vkl', 'vcl', 'vl', 'vcc', 'vc',
+  // === TIẾNG VIỆT CỰC MẠNH + TEENCODE ===
+  "đm","dm","dmm","đmm","đkm","dkm","đcm","dcm","đcmm","dcmm","đcmnr","dcmnr","đmcs","dmcs","đmm","djt","djtm","djtme","ditme","dit me","ditm","djtmm","địt mẹ","dit mẹ","đụ","du ma","duma","du me","dume","đume","đuma",
+  "lồn","lon","lìn","lin","loz","lozz","l0n","l0z","l.ồn","l~ồn","lwng","lwn","lồnláo","lonlao","lồn má","lon ma","mặt lồn","mat lon","thằng lồn","thang lon",
+  "cặc","cak","kak","kac","cac","cacc","c4c","c4k","k4c","concac","c@c","cu","kỳ","kym","cục cức","cuc cuc",
+  "buồi","buoi","buoj","bùi","buj","bu0i","buoif","bú cu","bu cu","bucu","bú cặc","bu cak",
+  "địt","dit","djt","djtcon","địt con","dit con","đis","diz","địt mẹ mày","dit me may",
+  "chịch","chich","xoạc","nứng","nung","thẩm du","tham du","quay tay","quaytay","địt nhau","dit nhau",
+  "vét máng","vet mang","liếm lồn","liem lon","đụ lồn","du lon","đút cặc","dut cak",
+  "óc chó","oc cho","0c ch0","0ccho","oc lon",
+  "ngu lồn","ngu lon",
+  "chó đẻ","do cho","mẹ mày","me may",
+  "phò","phỏ","phó","ph0","ph0`","cave","ca ve","gái cave","đĩ","đĩ điếm","gái điếm","con đĩ","con di",
+  "thằng mặt lồn","thang mat lon","đầu buồi","dau buoi",
+  
+  // === PHÂN BIỆT CHỦNG TỘC / KỲ THỊ ===
+  "nigger","nigga","niggas","neger","negro",
 
-  'vãi lồn', 'vãi lon', 'vãi cả lồn', 'vãi cứt', 'vãi l', 'vai lon',
-
-  'cặc', 'cak', 'kak', 'kac', 'lồn', 'loz', 'lìn', 'buồi', 'buoi', 'dái', 'dai',
-
-  'địt', 'dit', 'đụ', 'du me', 'dume', 'dit me', 'ditme', 'chịch', 'xoạc',
-
-  'óc chó', 'oc cho', 'óc lợn', 'oc lon', 'con chó', 'chó đẻ', 'cho de',
-  'chó má', 'ngu lồn', 'ngu lon', 'ngu vcl',
-
-  'mẹ mày', 'me may', 'mịa', 'phò', 'pho`', 'cave', 'đĩ', 'di~', 'hãm l',
-
-  'fuck', 'fck', 'bitch', 'shit', 'cock', 'dick', 'pussy', 'asshole',
-
-  'nigga', 'nigger',
-
-  'clmm', 'ccmn', 'cmm',
+  // === TIẾNG ANH CỰC MẠNH + BIẾN THỂ ===
+  "motherfucker","mthfckr","mthfcker","mothefucker","mofucker","maderfaker",
+  "bitch","bjtch","b.i.t.c.h","bitcch","b1tch","beetch",
+  "cock","cok","c0ck","kock","cawk","cack","kok",
+  "dick","dik","d1ck","d1c","dic","deek",
+  "pussy","pusy","pussyy","puzzy","pucci","pussi","pu.ssy",
+  "asshole","ass","a.s.s","assh0le","a55","a55hole","azhole",
+  "cunt","cuntz","kunt","cnut","c.unt",
+  "whore","hoar","hore","ho","hoe","wh0re","whorre",
+  "slut","slutt","s.lut","s1ut","slvt",
+  "bastard","b4stard","basturd","basterd",
+  "nigger","nigga","niggah","niggaz","niger","nigers","niggar","nigg3r","n1gger","n166er",
+  "retard","retarded","r3tard","retart","reetard",
+  "faggot","fag","f4g","fagot","fagget","fagg0t",
+  "penis","pennis","penus","pe.nis","p3nis","cock","dick","vagina","v4gina","vag","vage","vag1na",
+  "wanker","w4nker","wank","wankr",
+  "cum","cumm","c.u.m","cvm","jizz","spunk",
+  "tits","titties","t1ts","boobs","b00bs","boobies",
+  "rape","raped","r4pe","rapist","rap3",
+  "kike","chink","gook","spic","wetback","beaner","porch monkey","coon","jewboy","sandnigger"
 ];
 
 const bannedWords = rawBannedWords.map((w) => normalize(w));
