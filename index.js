@@ -1,44 +1,23 @@
-// index.js – lọc theo list + phát nhạc, KHÔNG dùng Gemini / API LLM
+// index.js – lọc theo list, KHÔNG dùng Gemini / API
 
 require('dotenv').config();
 const {
   Client,
   GatewayIntentBits,
   PermissionsBitField,
-  REST,
-  Routes,
-  SlashCommandBuilder,
 } = require('discord.js');
 
-const {
-  joinVoiceChannel,
-  createAudioPlayer,
-  createAudioResource,
-  AudioPlayerStatus,
-  NoSubscriberBehavior,
-  getVoiceConnection,
-} = require('@discordjs/voice');
-
-const playdl = require('play-dl');
-
-// ====== TOKEN & APP ID ======
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
-const APPLICATION_ID = process.env.APPLICATION_ID;
-
 if (!DISCORD_TOKEN) {
   console.error('❌ Thiếu DISCORD_TOKEN trong .env hoặc Railway Variables');
   process.exit(1);
 }
-if (!APPLICATION_ID) {
-  console.error('❌ Thiếu APPLICATION_ID trong .env hoặc Railway Variables');
-  process.exit(1);
-}
 
 // ====== CẤU HÌNH ======
-const allowedCommands = ['/vidu']; // thêm lệnh slash kiểu text nếu muốn
+const allowedCommands = ['/vidu']; // thêm lệnh slash hợp lệ nếu muốn
 const WARNING_LIFETIME_MS = 10_000; // cảnh báo giữ 10s rồi xóa
 
-// ID kênh 🎶︱music-request (chỉ cho dùng lệnh nhạc)
+// ID kênh 🎶︱music-request (chỉ cho dùng lệnh Rythm)
 const MUSIC_REQUEST_CHANNEL_ID = '1389843995135315979';
 // ID kênh 💬︱chung
 const GENERAL_CHANNEL_ID = '1389842864594227270';
@@ -66,6 +45,8 @@ const rawBannedWords = [
   "chó đẻ","do cho","mẹ mày","me may",
   "phò","phỏ","phó","ph0","ph0`","cave","ca ve","gái cave","đĩ","đĩ điếm","gái điếm","con đĩ","con di",
   "thằng mặt lồn","thang mat lon","đầu buồi","dau buoi",
+
+  "cc", "cl","cdmm","cmm", 
 
   // === PHÂN BIỆT CHỦNG TỘC / KỲ THỊ ===
   "nigger","nigga","niggas","neger","negro",
@@ -110,95 +91,11 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildVoiceStates, // để xử lý voice
   ],
 });
 
-// ====== MUSIC QUEUE MỖI GUILD ======
-const queues = new Map(); // guildId -> { voiceChannel, textChannel, connection, player, songs: [] }
-
-async function getRandomSimilarSong(baseSong) {
-  try {
-    const results = await playdl.search(baseSong.title, {
-      limit: 5,
-      source: { youtube: 'video' },
-    });
-    if (!results || results.length === 0) return null;
-
-    const filtered = results.filter(r => r.url !== baseSong.url);
-    const list = filtered.length > 0 ? filtered : results;
-    const idx = Math.floor(Math.random() * list.length);
-    return {
-      title: list[idx].title,
-      url: list[idx].url,
-    };
-  } catch (err) {
-    console.error('Lỗi tìm bài tương tự:', err);
-    return null;
-  }
-}
-
-async function playSong(guildId) {
-  const queue = queues.get(guildId);
-  if (!queue) return;
-  const song = queue.songs[0];
-  if (!song) return;
-
-  try {
-    const stream = await playdl.stream(song.url);
-    const resource = createAudioResource(stream.stream, {
-      inputType: stream.type,
-    });
-
-    queue.player.play(resource);
-    console.log(`🎵 Đang phát: ${song.title} (${song.url})`);
-  } catch (err) {
-    console.error('Lỗi khi play song:', err);
-    queue.textChannel.send('❌ Không phát được bài này, chuyển bài khác...');
-    queue.songs.shift();
-    if (queue.songs.length > 0) {
-      playSong(guildId);
-    } else {
-      queue.textChannel.send('✅ Hết bài trong hàng chờ.');
-    }
-  }
-}
-
-// ====== READY + AUTO DEPLOY SLASH COMMANDS ======
-client.once('ready', async () => {
+client.once('ready', () => {
   console.log(`🔥 Bot đã online: ${client.user.tag}`);
-
-  const commands = [
-    new SlashCommandBuilder()
-      .setName('play')
-      .setDescription('Phát nhạc từ YouTube (tên bài hoặc link)')
-      .addStringOption(option =>
-        option
-          .setName('song')
-          .setDescription('Tên bài hoặc URL YouTube')
-          .setRequired(true)
-      ),
-
-    new SlashCommandBuilder()
-      .setName('skip')
-      .setDescription('Bỏ qua bài hiện tại; nếu hết hàng chờ thì random bài tương tự'),
-
-    new SlashCommandBuilder()
-      .setName('stop')
-      .setDescription('Dừng nhạc và rời kênh voice'),
-  ].map(cmd => cmd.toJSON());
-
-  try {
-    const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
-    console.log('⏳ Đang deploy slash commands...');
-    await rest.put(
-      Routes.applicationCommands(APPLICATION_ID),
-      { body: commands }
-    );
-    console.log('✅ Deploy slash commands xong.');
-  } catch (err) {
-    console.error('❌ Lỗi deploy slash commands:', err);
-  }
 });
 
 // helper nếu cần sau này
@@ -301,11 +198,13 @@ async function handleViolation(message, options) {
     let content;
 
     if (isHardKeyword) {
+      // CHỈ CASE DÍNH KEYWORD MỚI NÓI "Ê..."
       content =
         `🚫 Ê, đi hơi xa rồi đó <@${userId}>.\n` +
         `> Lý do: ${reasonText}` +
         extraLine;
     } else {
+      // SOFT: chỉ hiện đúng baseReason (ví dụ "Kênh này chỉ để gọi nhạc thôi bạn ơi...")
       content = baseReason;
     }
 
@@ -346,7 +245,7 @@ async function handleViolation(message, options) {
   }
 }
 
-// ====== XỬ LÝ TIN NHẮN THƯỜNG (FILTER) ======
+// ====== XỬ LÝ TIN NHẮN ======
 client.on('messageCreate', async (message) => {
   try {
     const RYTHM_BOT_ID = '235088799074484224';
@@ -355,6 +254,7 @@ client.on('messageCreate', async (message) => {
 
     // Nếu là bot
     if (message.author.bot) {
+      // Trong kênh music-request: chỉ xoá bot KHÁC (không phải Rythm, không phải chính bot)
       if (message.channel.id === MUSIC_REQUEST_CHANNEL_ID) {
         if (
           message.author.id !== RYTHM_BOT_ID &&
@@ -372,6 +272,7 @@ client.on('messageCreate', async (message) => {
 
     // ==== LUẬT CHO CHANNEL 🎶︱music-request ====
     if (message.channel.id === MUSIC_REQUEST_CHANNEL_ID) {
+      // 1) Cấm chat thường → chỉ slash command
       if (!content.startsWith('/')) {
         await handleViolation(message, {
           isHardKeyword: false,
@@ -383,6 +284,7 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
+      // 2) Chỉ cho phép lệnh của Rythm
       const allowedRythmCommands = [
         '/play',
         '/stop',
@@ -399,13 +301,14 @@ client.on('messageCreate', async (message) => {
         await handleViolation(message, {
           isHardKeyword: false,
           baseReason:
-            `Ở đây chỉ nhận lệnh của **Rythm/bot nhạc** thôi nha 🎶\n` +
+            `Ở đây chỉ nhận lệnh của **Rythm** thôi nha 🎶\n` +
             `Nếu muốn thử lệnh khác hoặc chat linh tinh thì qua <#${GENERAL_CHANNEL_ID}> giùm cái 💬`,
           sourceTag: 'RYTHM_ONLY',
         });
         return;
       }
 
+      // 3) Vẫn lọc chửi bậy trong kênh nhạc
       if (containsBannedWord(content)) {
         await handleViolation(message, {
           isHardKeyword: true,
@@ -420,6 +323,8 @@ client.on('messageCreate', async (message) => {
     }
 
     // ====== LOGIC CHUNG CHO CÁC KÊNH KHÁC ======
+
+    // 1) Slash command kiểu text
     if (content.startsWith('/')) {
       const firstWord = content.split(/\s+/)[0];
       if (!allowedCommands.includes(firstWord)) {
@@ -433,6 +338,7 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
+    // 2) HARD keyword
     if (containsBannedWord(content)) {
       await handleViolation(message, {
         isHardKeyword: true,
@@ -442,173 +348,11 @@ client.on('messageCreate', async (message) => {
       });
       return;
     }
+
+    // 3) Không nằm trong list → bỏ qua
+    return;
   } catch (err) {
     console.error('Lỗi chung trong messageCreate:', err);
-  }
-});
-
-// ====== XỬ LÝ SLASH COMMAND (MUSIC) ======
-client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-
-  const { commandName } = interaction;
-
-  // ===== /play song =====
-  if (commandName === 'play') {
-    const query = interaction.options.getString('song', true);
-    const member = interaction.member;
-    const voiceChannel = member.voice.channel;
-
-    if (!voiceChannel) {
-      await interaction.reply({
-        content: '❌ Bạn phải vào một kênh voice trước đã.',
-        ephemeral: true,
-      });
-      return;
-    }
-
-    let queue = queues.get(interaction.guildId);
-
-    if (!queue) {
-      const connection = joinVoiceChannel({
-        channelId: voiceChannel.id,
-        guildId: interaction.guildId,
-        adapterCreator: interaction.guild.voiceAdapterCreator,
-      });
-
-      const player = createAudioPlayer({
-        behaviors: {
-          noSubscriber: NoSubscriberBehavior.Pause,
-        },
-      });
-
-      connection.subscribe(player);
-
-      queue = {
-        voiceChannel,
-        textChannel: interaction.channel,
-        connection,
-        player,
-        songs: [],
-      };
-
-      player.on(AudioPlayerStatus.Idle, () => {
-        queue.songs.shift();
-        if (queue.songs.length > 0) {
-          playSong(interaction.guildId);
-        } else {
-          queue.textChannel.send('✅ Hết bài trong hàng chờ.');
-        }
-      });
-
-      player.on('error', (error) => {
-        console.error('Lỗi player:', error);
-      });
-
-      queues.set(interaction.guildId, queue);
-    }
-
-    await interaction.deferReply();
-
-    let songInfo;
-    try {
-      if (query.startsWith('http')) {
-        const info = await playdl.video_basic_info(query);
-        songInfo = {
-          title: info.video_details.title,
-          url: info.video_details.url,
-        };
-      } else {
-        const results = await playdl.search(query, {
-          limit: 1,
-          source: { youtube: 'video' },
-        });
-        if (!results || results.length === 0) {
-          await interaction.editReply('❌ Không tìm thấy bài phù hợp trên YouTube.');
-          return;
-        }
-        songInfo = {
-          title: results[0].title,
-          url: results[0].url,
-        };
-      }
-    } catch (err) {
-      console.error('Lỗi khi tìm nhạc:', err);
-      await interaction.editReply('❌ Có lỗi khi tìm bài hát.');
-      return;
-    }
-
-    queue.songs.push(songInfo);
-
-    if (
-      queue.songs.length === 1 &&
-      queue.player.state.status !== AudioPlayerStatus.Playing
-    ) {
-      await playSong(interaction.guildId);
-      await interaction.editReply(`▶️ Đang phát: **${songInfo.title}**`);
-    } else {
-      await interaction.editReply(
-        `➕ Đã thêm vào hàng chờ: **${songInfo.title}** (vị trí ${queue.songs.length})`
-      );
-    }
-  }
-
-  // ===== /skip =====
-  if (commandName === 'skip') {
-    const queue = queues.get(interaction.guildId);
-    if (!queue || queue.songs.length === 0) {
-      await interaction.reply({
-        content: '❌ Không có bài nào để skip.',
-        ephemeral: true,
-      });
-      return;
-    }
-
-    const current = queue.songs[0];
-    queue.songs.shift();
-
-    if (queue.songs.length > 0) {
-      await playSong(interaction.guildId);
-      await interaction.reply(
-        `⏭ Đã chuyển sang bài: **${queue.songs[0].title}**`
-      );
-    } else {
-      const similar = await getRandomSimilarSong(current);
-      if (similar) {
-        queue.songs.push(similar);
-        await playSong(interaction.guildId);
-        await interaction.reply(
-          `⏭ Không còn bài trong hàng chờ, random bài tương tự: **${similar.title}**`
-        );
-      } else {
-        queue.player.stop();
-        await interaction.reply(
-          '⏹ Hết bài trong hàng chờ và không tìm được bài tương tự.'
-        );
-      }
-    }
-  }
-
-  // ===== /stop =====
-  if (commandName === 'stop') {
-    const queue = queues.get(interaction.guildId);
-    if (!queue) {
-      await interaction.reply({
-        content: '❌ Không có queue nào đang chạy.',
-        ephemeral: true,
-      });
-      return;
-    }
-
-    queue.songs = [];
-    queue.player.stop();
-
-    const connection = getVoiceConnection(interaction.guildId);
-    if (connection) connection.destroy();
-
-    queues.delete(interaction.guildId);
-
-    await interaction.reply('⏹ Đã dừng nhạc và rời kênh voice.');
   }
 });
 
