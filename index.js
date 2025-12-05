@@ -19,6 +19,9 @@ const WARNING_LIFETIME_MS = 10_000; // cảnh báo giữ 10s rồi xóa
 
 // ID kênh 🎶︱music-request (chỉ cho dùng lệnh Rythm)
 const MUSIC_REQUEST_CHANNEL_ID = '1389843995135315979';
+// ID kênh 📢︱chung 
+// const GENERAL_CHAT_CHANNEL_ID = '1389842864594227270';
+
 
 // ====== HÀM NORMALIZE ======
 function normalize(text) {
@@ -223,7 +226,24 @@ async function handleViolation(message, options) {
 // ====== XỬ LÝ TIN NHẮN ======
 client.on('messageCreate', async (message) => {
   try {
-    if (message.author.bot) return;
+    // Cho phép Rythm, nhưng chặn bot khác trong kênh music-request
+    const RYTHM_BOT_ID = '235088799074484224';
+    const GENERAL_CHANNEL_ID = '1389842864594227270'; // 💬︱chung
+
+    if (message.author.bot) {
+      // Nếu ở kênh music-request
+      if (message.channel.id === MUSIC_REQUEST_CHANNEL_ID) {
+
+        // Nếu bot này không phải Rythm → xoá
+        if (message.author.id !== RYTHM_BOT_ID) {
+          message.delete().catch(() => {});
+        }
+
+        return; // bot không xử lý gì thêm
+      }
+
+      return; // bot ở kênh khác thì bỏ qua
+    }
 
     const content = message.content.trim();
     if (!content) return;
@@ -234,7 +254,9 @@ client.on('messageCreate', async (message) => {
       if (!content.startsWith('/')) {
         await handleViolation(message, {
           isHardKeyword: false,
-          baseReason: 'Kênh này chỉ dùng lệnh nhạc thôi bạn êi 🎧',
+          baseReason:
+            `Kênh này chỉ dùng lệnh nhạc thôi bạn êi 🎧\n` +
+            `Muốn tám thì qua kênh <#${GENERAL_CHANNEL_ID}> mà sủa nha 💬`,
           sourceTag: 'CHANNEL_RULE',
         });
         return;
@@ -256,7 +278,9 @@ client.on('messageCreate', async (message) => {
       if (!allowedRythmCommands.includes(firstWord)) {
         await handleViolation(message, {
           isHardKeyword: false,
-          baseReason: 'Kênh này chỉ nhận lệnh của **Rythm** thôi nha 🎶',
+          baseReason:
+            `Kênh này chỉ nhận lệnh của **Rythm** thôi nha 🎶\n` +
+            `Chat thường thì qua <#${GENERAL_CHANNEL_ID}> giùm cái 💬`,
           sourceTag: 'RYTHM_ONLY',
         });
         return;
