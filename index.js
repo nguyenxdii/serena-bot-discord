@@ -1,4 +1,4 @@
-// index.js – chỉ lọc theo list, không dùng Gemini
+// index.js – lọc theo list, KHÔNG dùng Gemini / API
 
 require('dotenv').config();
 const {
@@ -15,7 +15,10 @@ if (!DISCORD_TOKEN) {
 
 // ====== CẤU HÌNH ======
 const allowedCommands = ['/vidu']; // thêm lệnh hợp lệ nếu muốn
-const WARNING_LIFETIME_MS = 5000;  // thời gian giữ message cảnh báo (ms)
+const WARNING_LIFETIME_MS = 10_000; // cảnh báo giữ 10s rồi xóa
+
+// ID kênh 🎶︱music-request (chỉ cho dùng lệnh Rythm)
+const MUSIC_REQUEST_CHANNEL_ID = '1389843995135315979';
 
 // ====== HÀM NORMALIZE ======
 function normalize(text) {
@@ -26,6 +29,7 @@ function normalize(text) {
 }
 
 // ====== LIST TỪ CẤM (HARD KEYWORD) ======
+// Sau này bạn muốn chia 3 lớp thì chỉ cần tách list này ra thành nhiều list nhỏ.
 const rawBannedWords = [
   'đm', 'dm', 'dmm', 'đmm', 'đkm', 'dkm', 'đcm', 'dcm', 'đcmm', 'dcmm',
   'vkl', 'vcl', 'vl', 'vcc', 'vc',
@@ -43,11 +47,9 @@ const rawBannedWords = [
 
   'fuck', 'fck', 'bitch', 'shit', 'cock', 'dick', 'pussy', 'asshole',
 
-  // racist / hate speech
-  'nigga',
-  'nigger',
+  'nigga', 'nigger',
 
-  'clmm', 'ccmn', 'cmm', 'vcl',
+  'clmm', 'ccmn', 'cmm',
 ];
 
 const bannedWords = rawBannedWords.map((w) => normalize(w));
@@ -83,14 +85,14 @@ function isModerator(member) {
 
 // ====== QUẢN LÝ VI PHẠM & TIMEOUT ======
 const userViolations = new Map(); // userId -> { count, lastAt }
-const VIOLATION_WINDOW_MS = 2 * 60 * 60 * 1000; // 2 tiếng
+const VIOLATION_WINDOW_MS = 60 * 60 * 1000; // 1 tiếng không chửi thì reset đếm
 
 // các mốc vi phạm → timeout tăng dần
 const PENALTY_STEPS = [
-  { threshold: 5,  durationMs: 3  * 60 * 1000 },   // 5 lần → 3 phút
-  { threshold: 10, durationMs: 5  * 60 * 1000 },   // 10 lần → 5 phút
-  { threshold: 15, durationMs: 10 * 60 * 1000 },   // 15 lần → 10 phút
-  { threshold: 20, durationMs: 60 * 60 * 1000 },   // 20 lần → 1 giờ
+  { threshold: 5,  durationMs: 3  * 60 * 1000 },  // 5 lần → 3 phút
+  { threshold: 10, durationMs: 5  * 60 * 1000 },  // 10 lần → 5 phút
+  { threshold: 15, durationMs: 10 * 60 * 1000 },  // 15 lần → 10 phút
+  // cần thêm mốc nữa thì add vào đây
 ];
 
 function computePenalty(count) {
@@ -128,7 +130,7 @@ async function handleViolation(message, options) {
     const now = Date.now();
     const record = userViolations.get(userId) || { count: 0, lastAt: 0 };
 
-    // nếu im hơn 2h → reset đếm
+    // nếu im hơn 1h → reset đếm
     if (record.lastAt && now - record.lastAt > VIOLATION_WINDOW_MS) {
       record.count = 0;
     }
@@ -161,10 +163,10 @@ async function handleViolation(message, options) {
   if (isHardKeyword) {
     if (remaining > 0) {
       extraLine =
-        `\n👉 Thử mồm hư thêm **${remaining}** lần nữa đi, xem như nào 😏`;
+        `\n👉 Còn **${remaining}** lần nữa là bị khóa mõm thiệt đó 😼`;
     } else if (penaltyInfo.currentStep) {
       extraLine =
-        `\n👉 Mồm hư hơi nhiều rồi đó, hệ thống đang khoá chat nhẹ cho tỉnh người.`;
+        `\n👉 Mồm hư hơi nhiều rồi đó, tao đang **khóa mõm** nhẹ cho tỉnh người.`;
     }
   }
 
@@ -203,8 +205,9 @@ async function handleViolation(message, options) {
         );
 
         const minutes = Math.round(penaltyInfo.timeoutMs / 60000);
+        // Thông báo này KHÔNG auto delete, để mọi người thấy rõ bị khóa mõm
         await channel.send(
-          `⏱ <@${userId}> đã bị khoá chat **${minutes} phút** vì mồm đi hơi xa quá mức.`
+          `🔇 <@${userId}> tạm thời "câm nín" **${minutes} phút**. Suy nghĩ về cuộc đời đi 😎`
         );
       } catch (err) {
         console.error('Không timeout được user:', err);
@@ -224,6 +227,57 @@ client.on('messageCreate', async (message) => {
 
     const content = message.content.trim();
     if (!content) return;
+
+    // ==== LUẬT CHO CHANNEL 🎶︱music-request ====
+    if (message.channel.id === MUSIC_REQUEST_CHANNEL_ID) {
+      // 1) Cấm chat thường → chỉ cho lệnh slash command
+      if (!content.startsWith('/')) {
+        await handleViolation(message, {
+          isHardKeyword: false,
+          baseReason: 'Kênh này chỉ dùng lệnh nhạc thôi bạn êi 🎧',
+          sourceTag: 'CHANNEL_RULE',
+        });
+        return;
+      }
+
+      // 2) Chỉ cho phép lệnh của Rythm
+      const allowedRythmCommands = [
+        '/play',
+        '/stop',
+        '/pause',
+        '/resume',
+        '/skip',
+        '/queue',
+        '/nowplaying',
+      ];
+
+      const firstWord = content.split(/\s+/)[0];
+
+      if (!allowedRythmCommands.includes(firstWord)) {
+        await handleViolation(message, {
+          isHardKeyword: false,
+          baseReason: 'Kênh này chỉ nhận lệnh của **Rythm** thôi nha 🎶',
+          sourceTag: 'RYTHM_ONLY',
+        });
+        return;
+      }
+
+      // 3) Vẫn lọc chửi bậy trong kênh nhạc
+      if (containsBannedWord(content)) {
+        await handleViolation(message, {
+          isHardKeyword: true,
+          baseReason:
+            'Sử dụng từ ngữ tục tĩu/nặng nằm trong danh sách cấm của server.',
+          sourceTag: 'LIST_HARD_MUSIC',
+        });
+        return;
+      }
+
+      // Lệnh Rythm hợp lệ → cho qua, không xử lý tiếp
+      return;
+    }
+
+    // ====== LOGIC CHUNG CHO CÁC KÊNH KHÁC ======
 
     // 1) Lệnh kiểu text bắt đầu bằng "/"
     if (content.startsWith('/')) {
@@ -251,7 +305,7 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
-    // 3) Không nằm trong list → bỏ qua (không gọi API, không xoá)
+    // 3) Không nằm trong list → bỏ qua (không xoá, không gọi API)
     return;
   } catch (err) {
     console.error('Lỗi chung trong messageCreate:', err);
