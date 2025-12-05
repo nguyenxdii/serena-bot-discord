@@ -186,28 +186,28 @@ async function handleViolation(message, options) {
     }
   }
 
-  // gửi cảnh báo trong kênh, auto xoá sau WARNING_LIFETIME_MS
-  try {
-    const reply = await message.reply({
-      content:
-        `🚫 Mồm hơi lố tay rồi đó <@${userId}>.\n` +
-        `> Lý do: ${reasonText}` +
-        extraLine,
-      allowedMentions: { repliedUser: false },
-    });
-
-    setTimeout(() => {
-      reply.delete().catch(() => {});
-    }, WARNING_LIFETIME_MS); // 10 giây
-  } catch (err) {
-    console.error('Không gửi được reply cảnh báo:', err);
-  }
-
-  // xoá tin nhắn gốc NGAY LẬP TỨC
+  // xoá tin nhắn gốc NGAY LẬP TỨC (trước khi gửi cảnh báo)
   try {
     await message.delete();
   } catch (err) {
     console.error('Không xoá được tin nhắn vi phạm:', err);
+  }
+
+  // gửi cảnh báo trong kênh, auto xoá sau WARNING_LIFETIME_MS
+  try {
+    const warningMsg = await channel.send({
+      content:
+        `🚫 Mồm hơi lố tay rồi đó <@${userId}>.\n` +
+        `> Lý do: ${reasonText}` +
+        extraLine,
+      allowedMentions: { users: [userId] },
+    });
+
+    setTimeout(() => {
+      warningMsg.delete().catch(() => {});
+    }, WARNING_LIFETIME_MS); // 10 giây
+  } catch (err) {
+    console.error('Không gửi được cảnh báo:', err);
   }
 
   // HARD keyword → nếu đủ mốc thì timeout (khóa chat), KHÔNG BAN
