@@ -193,12 +193,22 @@ async function handleViolation(message, options) {
 
   // Gửi cảnh báo (sống 10s)
   try {
-    const warningMsg = await channel.send({
-      content:
-        `🚫 Mồm hơi lố tay rồi đó <@${userId}>.\n` +
+    let content;
+
+    if (isHardKeyword) {
+      // CHỈ CASE DÍNH KEYWORD MỚI NÓI "Ê..."
+      content =
+        `🚫 Ê, đi hơi xa rồi đó <@${userId}>.\n` +
         `> Lý do: ${reasonText}` +
-        extraLine,
-      allowedMentions: { users: [userId] },
+        extraLine;
+    } else {
+      // SOFT: chỉ hiện đúng baseReason (ví dụ "Kênh này chỉ để gọi nhạc thôi bạn ơi...")
+      content = baseReason;
+    }
+
+    const warningMsg = await channel.send({
+      content,
+      allowedMentions: isHardKeyword ? { users: [userId] } : undefined,
     });
 
     setTimeout(() => {
@@ -242,9 +252,7 @@ client.on('messageCreate', async (message) => {
 
     // Nếu là bot
     if (message.author.bot) {
-      // ĐẶC BIỆT: trong kênh music-request, chỉ xoá bot KHÁC, không xoá:
-      // - Rythm
-      // - chính bot này (client.user)
+      // Trong kênh music-request: chỉ xoá bot KHÁC (không phải Rythm, không phải chính bot)
       if (message.channel.id === MUSIC_REQUEST_CHANNEL_ID) {
         if (
           message.author.id !== RYTHM_BOT_ID &&
@@ -339,6 +347,7 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
+    // 3) Không nằm trong list → bỏ qua
     return;
   } catch (err) {
     console.error('Lỗi chung trong messageCreate:', err);
