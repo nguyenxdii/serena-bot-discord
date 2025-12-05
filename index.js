@@ -14,12 +14,12 @@ if (!DISCORD_TOKEN) {
 }
 
 // ====== CẤU HÌNH ======
-const allowedCommands = ['/vidu']; // thêm lệnh hợp lệ nếu muốn
+const allowedCommands = ['/vidu']; // thêm lệnh slash hợp lệ nếu muốn
 const WARNING_LIFETIME_MS = 15_000; // cảnh báo giữ 15s rồi xóa
 
 // ID kênh 🎶︱music-request (chỉ cho dùng lệnh Rythm)
 const MUSIC_REQUEST_CHANNEL_ID = '1389843995135315979';
-// ID kênh 📢︱chung
+// ID kênh 💬︱chung
 const GENERAL_CHANNEL_ID = '1389842864594227270';
 
 // ====== HÀM NORMALIZE ======
@@ -205,7 +205,7 @@ async function handleViolation(message, options) {
     console.error('Không gửi được reply cảnh báo:', err);
   }
 
-  // xoá tin nhắn gốc
+  // xoá tin nhắn gốc NGAY LẬP TỨC
   try {
     await message.delete();
   } catch (err) {
@@ -241,9 +241,12 @@ async function handleViolation(message, options) {
 // ====== XỬ LÝ TIN NHẮN ======
 client.on('messageCreate', async (message) => {
   try {
-    // Cho phép Rythm, nhưng chặn bot khác trong kênh music-request
     const RYTHM_BOT_ID = '235088799074484224';
 
+    // Bỏ qua DM cho chắc
+    if (!message.guild) return;
+
+    // Nếu là bot
     if (message.author.bot) {
       // Nếu ở kênh music-request
       if (message.channel.id === MUSIC_REQUEST_CHANNEL_ID) {
@@ -254,7 +257,8 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      return; // bot ở kênh khác thì bỏ qua
+      // bot ở kênh khác thì bỏ qua
+      return;
     }
 
     const content = message.content.trim();
@@ -309,7 +313,7 @@ client.on('messageCreate', async (message) => {
         return;
       }
 
-      // Lệnh Rythm hợp lệ → cho qua, không xử lý tiếp
+      // Lệnh Rythm hợp lệ → cho qua
       return;
     }
 
