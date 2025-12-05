@@ -15,7 +15,7 @@ if (!DISCORD_TOKEN) {
 
 // ====== CẤU HÌNH ======
 const allowedCommands = ['/vidu']; // thêm lệnh slash hợp lệ nếu muốn
-const WARNING_LIFETIME_MS = 10_000; // ⚠️ cảnh báo giữ 10s rồi xóa
+const WARNING_LIFETIME_MS = 10_000; // cảnh báo giữ 10s rồi xóa
 
 // ID kênh 🎶︱music-request (chỉ cho dùng lệnh Rythm)
 const MUSIC_REQUEST_CHANNEL_ID = '1389843995135315979';
@@ -106,11 +106,10 @@ function isModerator(member) {
 const userViolations = new Map(); // userId -> { count, lastAt }
 const VIOLATION_WINDOW_MS = 60 * 60 * 1000; // 1 tiếng không chửi thì reset đếm
 
-// các mốc vi phạm → timeout tăng dần
 const PENALTY_STEPS = [
-  { threshold: 5,  durationMs: 3  * 60 * 1000 },  // 5 lần → 3 phút
-  { threshold: 10, durationMs: 5  * 60 * 1000 },  // 10 lần → 5 phút
-  { threshold: 15, durationMs: 10 * 60 * 1000 },  // 15 lần → 10 phút
+  { threshold: 5,  durationMs: 3  * 60 * 1000 },
+  { threshold: 10, durationMs: 5  * 60 * 1000 },
+  { threshold: 15, durationMs: 10 * 60 * 1000 },
 ];
 
 function computePenalty(count) {
@@ -126,7 +125,7 @@ function computePenalty(count) {
   };
 }
 
-// Xử lý vi phạm (xoá + cảnh báo + có thể timeout)
+// Xử lý vi phạm
 async function handleViolation(message, options) {
   const {
     isHardKeyword = false,
@@ -142,7 +141,6 @@ async function handleViolation(message, options) {
   let remaining = null;
   let penaltyInfo = { timeoutMs: 0, currentStep: null, nextStep: null };
 
-  // chỉ HARD keyword mới bị tính vào bộ đếm
   if (isHardKeyword) {
     const now = Date.now();
     const record = userViolations.get(userId) || { count: 0, lastAt: 0 };
@@ -186,14 +184,14 @@ async function handleViolation(message, options) {
     }
   }
 
-  // xoá tin nhắn gốc NGAY LẬP TỨC (trước khi gửi cảnh báo)
+  // Xoá tin nhắn gốc
   try {
     await message.delete();
   } catch (err) {
     console.error('Không xoá được tin nhắn vi phạm:', err);
   }
 
-  // gửi cảnh báo trong kênh, auto xoá sau WARNING_LIFETIME_MS
+  // Gửi cảnh báo (sống 10s)
   try {
     const warningMsg = await channel.send({
       content:
@@ -205,12 +203,12 @@ async function handleViolation(message, options) {
 
     setTimeout(() => {
       warningMsg.delete().catch(() => {});
-    }, WARNING_LIFETIME_MS); // 10 giây
+    }, WARNING_LIFETIME_MS);
   } catch (err) {
     console.error('Không gửi được cảnh báo:', err);
   }
 
-  // HARD keyword → nếu đủ mốc thì timeout (khóa chat), KHÔNG BAN
+  // HARD keyword → timeout
   if (isHardKeyword && penaltyInfo.timeoutMs > 0) {
     const member = message.member;
     if (member && member.moderatable) {
@@ -244,8 +242,14 @@ client.on('messageCreate', async (message) => {
 
     // Nếu là bot
     if (message.author.bot) {
+      // ĐẶC BIỆT: trong kênh music-request, chỉ xoá bot KHÁC, không xoá:
+      // - Rythm
+      // - chính bot này (client.user)
       if (message.channel.id === MUSIC_REQUEST_CHANNEL_ID) {
-        if (message.author.id !== RYTHM_BOT_ID) {
+        if (
+          message.author.id !== RYTHM_BOT_ID &&
+          message.author.id !== client.user.id
+        ) {
           message.delete().catch(() => {});
         }
         return;
@@ -258,7 +262,7 @@ client.on('messageCreate', async (message) => {
 
     // ==== LUẬT CHO CHANNEL 🎶︱music-request ====
     if (message.channel.id === MUSIC_REQUEST_CHANNEL_ID) {
-      // 1) Cấm chat thường → chỉ cho lệnh slash command
+      // 1) Cấm chat thường → chỉ slash command
       if (!content.startsWith('/')) {
         await handleViolation(message, {
           isHardKeyword: false,
@@ -310,7 +314,7 @@ client.on('messageCreate', async (message) => {
 
     // ====== LOGIC CHUNG CHO CÁC KÊNH KHÁC ======
 
-    // 1) Lệnh kiểu text bắt đầu bằng "/"
+    // 1) Slash command kiểu text
     if (content.startsWith('/')) {
       const firstWord = content.split(/\s+/)[0];
       if (!allowedCommands.includes(firstWord)) {
@@ -324,7 +328,7 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
-    // 2) HARD keyword → xoá + cảnh báo + đếm + có thể timeout
+    // 2) HARD keyword
     if (containsBannedWord(content)) {
       await handleViolation(message, {
         isHardKeyword: true,
@@ -335,7 +339,6 @@ client.on('messageCreate', async (message) => {
       return;
     }
 
-    // 3) Không nằm trong list → bỏ qua
     return;
   } catch (err) {
     console.error('Lỗi chung trong messageCreate:', err);
