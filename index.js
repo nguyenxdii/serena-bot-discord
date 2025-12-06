@@ -62,7 +62,7 @@ const triggers = {
   '!huh': (id) => `Huh? Như nào? 😐`,
 
   // === Cà khịa member riêng ===
-  '!phatzeno': (id) => `Gọi <@864072941834862632> hả? Nó đứng dậy thôi là ghế còn hoảng loạn 😭🍔`,
+  '!phatzeno': (id) => `Gọi <@864072941834862632> hả? Nó đứng dậy thôi là cái ghế hoảng loạn 😭🍔`,
   '!feru': (id) => `<@874186912078921768> hả? Nó không đi bộ, nó lăn cho nhanh 😭🛞`,
   '!wang': (id) => `<@493326232088346624> á? Sủa bậy bạ tao mute cho im giờ 😤🚫`,
   '!dii': (id) => `Con mẹ gì? Gọi bố chi? 😏✨ <@875358286487097395>`,
