@@ -60,6 +60,11 @@ const triggers = {
   '!ok': (id) => `Ok con dê <@${id}> 🐐`,
   '!ko': (id) => `Không là không, mày làm gì tao được <@${id}> 😤`,
   '!huh': (id) => `Huh cái đầu mày <@${id}> 😐`,
+
+  // === Member ===
+  '!phatzeno': (id) => `Gọi PhatZeno hả <@${id}>? Nó đứng dậy thôi là ghế còn hoảng loạn 😭🍔`,
+  '!feru': (id) => `Feru hả <@${id}>? Nó không đi bộ, nó lăn cho nhanh 😭🛞`,
+  '!wang': (id) => `Wang á <@${id}>? Tao mute mày bây giờ 😤🚫`,
 };
 
 
