@@ -20,52 +20,55 @@ const WARNING_LIFETIME_MS = 10_000; // cảnh báo giữ 10s rồi xóa
 // ====== CẤU HÌNH TRIGGER "!" ======
 const triggers = {
   '!botngu': (id) => `Ngu cũng tại mày đó <@${id}> 😏`,
-  '!hello': (id) => `Mày gọi tao chi dzợ <@${id}> 😴`,
-  '!ping': (id) => `Pong cái đầu mày <@${id}> 😤 Test hoài!`,
+  '!hello': (id) => `Gọi tao chi? 😴`,
+  '!ping': (id) => `Pong cái đầu mày 😤 Test hoài!`,
 
   // ==== CÀ KHỊA GẮT ====
   '!ga': (id) => `Gà như mày đó <@${id}> 🐔🤣`,
-  '!vl': (id) => `Vl cái mặt mày á <@${id}> 😭`,
-  '!sad': (id) => `Buồn cái gì nữa <@${id}>, lớn rồi 😭`,
+  '!vl': (id) => `Vl mẹ gì <@${id}>? tao ban mày giờ! 😭`,
+  '!sad': (id) => `Buồn mẹ gì <@${id}>, lớn rồi 😭`,
   '!cute': (id) => `Cute hơn mày rõ ràng <@${id}> 😌✨`,
-  '!chan': (id) => `Chán thì đi ngủ <@${id}>, đừng hành tao 😩`,
+  '!chan': (id) => `Chán thì đi ngủ, đừng hành tao 😩`,
 
   // ==== THÁCH SOLO ====
-  '!solo': (id) => `Solo không <@${id}>? Đừng để tao vả 😎🔥`,
-  '!pvp': (id) => `PvP không <@${id}>? Bước ra đây 🤺`,
-  '!gap': (id) => `Gặp thì gặp <@${id}>, đừng sủa nhiều 😒`,
+  '!solo': (id) => `Solo không <@${id}>? Tao ban mày trước lấy lợi thế 😎🔥`,
+  '!pvp': (id) => `Nhào vô! 🤺`,
+  '!gap': (id) => `Gặp thì gặp, đừng sủa nhiều 😒`,
 
   // ==== CÀ KHỊA THEO TÊN ====
-  '!boss': (id) => `Boss cái gì mày <@${id}>… nhìn lại bản thân đi 😭`,
-  '!noob': (id) => `Noob như mày tao thấy tội luôn <@${id}> 😭`,
-  '!pro': (id) => `Pro cái nồi gì <@${id}> 😭🔥`,
-  '!lag': (id) => `Lag là do não mày chậm <@${id}> chứ bot tao nhanh 😏⚡`,
+  '!noob': (id) => `Noob như mày tao thấy thương luôn <@${id}> 😭`,
+  '!pro': (id) => `Không lẽ gà như mày <@${id}>? 😏🔥`,
+  '!lag': (id) => `Lag là do não mày chậm, chứ bot tao nhanh 😏⚡`,
 
   // ==== MEME CHUẨN TRẺ TRÂU ====
   '!sus': (id) => `Mày sus thấy sợ luôn á <@${id}> 😳🔪`,
-  '!wtf': (id) => `Wtf cái gì nữa <@${id}>, mày ngu quá nên không hiểu thôi 😭`,
-  '!bru': (id) => `Bruhhh <@${id}>… lú vừa thôi 😭🤦`,
+  '!wtf': (id) => `Wtf cái gì <@${id}>?, chửi tao ban mày giờ!😼`,
+  '!bru': (id) => `Bruhhh... 🤦`,
 
   // ==== NGÁO NGƠ ====
-  '!meo': (id) => `Meow cái đầu mày <@${id}> 😺`,
-  '!cho': (id) => `Gâu nè <@${id}> 🐶 (mày mới là chó)`,
+  '!meo': (id) => `Meowww 🐱`,
+  '!cho': (id) => `Grrrr… mày muốn tao cắn không🐶`,
+  '!gau': (id) => `Gâu gâu cái gì <@${id}>? Nhìn là biết chó nhà ai rồi 😎🐾`,
   '!run': (id) => `Chạy hả <@${id}>? Tao đuổi kịp liền 😤🏃`,
 
-  // ==== TROLL KHÔNG LỐI VỀ ====
-  '!ban': (id) => `Ban tao thử coi <@${id}>, tao méc admin vả mày đó 😤`,
-  '!go': (id) => `Đi đâu <@${id}>? Đứng lại coi 😒`,
-  '!bye': (id) => `Biến lẹ <@${id}>, tí nhớ quay lại cho vui 😘`,
+  // ==== TROLL KHÔNG LỐI VỀ (1–2 cái có dọa ban) ====
+  '!ban': (id) => `Mày mà spam nữa <@${id}> tao ban chơi cho vui á 😤`,
+  '!bye': (id) => `Biến lẹ <@${id}>. Mà biến xa quá tao kick thiệt đó 😘`,
+  '!go': (id) => `Đi đâu <@${id}>? Đi xa tao ban mày à 😒`,
 
-  // ==== NGẮN GỌN NGANG NGỬA ====
-  '!ok': (id) => `Ok con dê <@${id}> 🐐`,
+  // ==== NGẮN GỌN ====
+  '!ok': (id) => `Ok con dê 🐐`,
   '!ko': (id) => `Không là không, mày làm gì tao được <@${id}> 😤`,
-  '!huh': (id) => `Huh cái đầu mày <@${id}> 😐`,
+  '!huh': (id) => `Huh? Như nào? 😐`,
 
   // === Cà khịa member riêng ===
-  '!phatzeno': (id) => `Gọi PhatZeno hả <@${id}>? Nó đứng dậy thôi là ghế còn hoảng loạn 😭🍔`,
-  '!feru': (id) => `Feru hả <@${id}>? Nó không đi bộ, nó lăn cho nhanh 😭🛞`,
-  '!wang': (id) => `Wang á <@${id}>? Tao mute mày bây giờ 😤🚫`,
+  '!phatzeno': (id) => `Gọi <@864072941834862632> hả? Nó đứng dậy thôi là ghế còn hoảng loạn 😭🍔`,
+  '!feru': (id) => `<@874186912078921768> hả? Nó không đi bộ, nó lăn cho nhanh 😭🛞`,
+  '!wang': (id) => `<@493326232088346624> á? Sủa bậy bạ tao mute cho im giờ 😤🚫`,
+  '!dii': (id) => `Con mẹ gì? Gọi bố chi? 😏✨ <@875358286487097395>`,
+  '!puc': () => `<@894051913656578088> đang bán mình cho tư bản rồi, chưa thả về đâu 😭💼`,
 };
+
 
 // ID kênh 🎶︱music-request (chỉ cho dùng lệnh Rythm)
 const MUSIC_REQUEST_CHANNEL_ID = '1389843995135315979';
