@@ -61,12 +61,11 @@ const triggers = {
   '!ko': (id) => `Không là không, mày làm gì tao được <@${id}> 😤`,
   '!huh': (id) => `Huh cái đầu mày <@${id}> 😐`,
 
-  // === Member ===
+  // === Cà khịa member riêng ===
   '!phatzeno': (id) => `Gọi PhatZeno hả <@${id}>? Nó đứng dậy thôi là ghế còn hoảng loạn 😭🍔`,
   '!feru': (id) => `Feru hả <@${id}>? Nó không đi bộ, nó lăn cho nhanh 😭🛞`,
   '!wang': (id) => `Wang á <@${id}>? Tao mute mày bây giờ 😤🚫`,
 };
-
 
 // ID kênh 🎶︱music-request (chỉ cho dùng lệnh Rythm)
 const MUSIC_REQUEST_CHANNEL_ID = '1389843995135315979';
@@ -378,10 +377,15 @@ client.on('messageCreate', async (message) => {
     // 0) Trigger "!" đơn giản
     if (content.startsWith('!')) {
       const firstWord = content.split(/\s+/)[0].toLowerCase();
-      const reply = triggers[firstWord];
+      const trigger = triggers[firstWord];
 
-      if (reply) {
-        await message.reply(reply);
+      if (trigger) {
+        const replyText =
+          typeof trigger === 'function'
+            ? trigger(message.author.id)
+            : String(trigger);
+
+        await message.reply(replyText);
         return; // đã xử lý trigger thì thôi
       }
       // nếu không có trong list triggers thì cho phép đi tiếp xuống dưới
