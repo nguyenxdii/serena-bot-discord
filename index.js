@@ -17,6 +17,52 @@ if (!DISCORD_TOKEN) {
 const allowedCommands = ['/vidu']; // thêm lệnh slash hợp lệ nếu muốn
 const WARNING_LIFETIME_MS = 10_000; // cảnh báo giữ 10s rồi xóa
 
+// ====== CẤU HÌNH TRIGGER "!" ======
+const triggers = {
+  '!botngu': (id) => `Ngu cũng tại mày đó <@${id}> 😏`,
+  '!hello': (id) => `Mày gọi tao chi dzợ <@${id}> 😴`,
+  '!ping': (id) => `Pong cái đầu mày <@${id}> 😤 Test hoài!`,
+
+  // ==== CÀ KHỊA GẮT ====
+  '!ga': (id) => `Gà như mày đó <@${id}> 🐔🤣`,
+  '!vl': (id) => `Vl cái mặt mày á <@${id}> 😭`,
+  '!sad': (id) => `Buồn cái gì nữa <@${id}>, lớn rồi 😭`,
+  '!cute': (id) => `Cute hơn mày rõ ràng <@${id}> 😌✨`,
+  '!chan': (id) => `Chán thì đi ngủ <@${id}>, đừng hành tao 😩`,
+
+  // ==== THÁCH SOLO ====
+  '!solo': (id) => `Solo không <@${id}>? Đừng để tao vả 😎🔥`,
+  '!pvp': (id) => `PvP không <@${id}>? Bước ra đây 🤺`,
+  '!gap': (id) => `Gặp thì gặp <@${id}>, đừng sủa nhiều 😒`,
+
+  // ==== CÀ KHỊA THEO TÊN ====
+  '!boss': (id) => `Boss cái gì mày <@${id}>… nhìn lại bản thân đi 😭`,
+  '!noob': (id) => `Noob như mày tao thấy tội luôn <@${id}> 😭`,
+  '!pro': (id) => `Pro cái nồi gì <@${id}> 😭🔥`,
+  '!lag': (id) => `Lag là do não mày chậm <@${id}> chứ bot tao nhanh 😏⚡`,
+
+  // ==== MEME CHUẨN TRẺ TRÂU ====
+  '!sus': (id) => `Mày sus thấy sợ luôn á <@${id}> 😳🔪`,
+  '!wtf': (id) => `Wtf cái gì nữa <@${id}>, mày ngu quá nên không hiểu thôi 😭`,
+  '!bru': (id) => `Bruhhh <@${id}>… lú vừa thôi 😭🤦`,
+
+  // ==== NGÁO NGƠ ====
+  '!meo': (id) => `Meow cái đầu mày <@${id}> 😺`,
+  '!cho': (id) => `Gâu nè <@${id}> 🐶 (mày mới là chó)`,
+  '!run': (id) => `Chạy hả <@${id}>? Tao đuổi kịp liền 😤🏃`,
+
+  // ==== TROLL KHÔNG LỐI VỀ ====
+  '!ban': (id) => `Ban tao thử coi <@${id}>, tao méc admin vả mày đó 😤`,
+  '!go': (id) => `Đi đâu <@${id}>? Đứng lại coi 😒`,
+  '!bye': (id) => `Biến lẹ <@${id}>, tí nhớ quay lại cho vui 😘`,
+
+  // ==== NGẮN GỌN NGANG NGỬA ====
+  '!ok': (id) => `Ok con dê <@${id}> 🐐`,
+  '!ko': (id) => `Không là không, mày làm gì tao được <@${id}> 😤`,
+  '!huh': (id) => `Huh cái đầu mày <@${id}> 😐`,
+};
+
+
 // ID kênh 🎶︱music-request (chỉ cho dùng lệnh Rythm)
 const MUSIC_REQUEST_CHANNEL_ID = '1389843995135315979';
 // ID kênh 💬︱chung
@@ -323,6 +369,18 @@ client.on('messageCreate', async (message) => {
     }
 
     // ====== LOGIC CHUNG CHO CÁC KÊNH KHÁC ======
+
+    // 0) Trigger "!" đơn giản
+    if (content.startsWith('!')) {
+      const firstWord = content.split(/\s+/)[0].toLowerCase();
+      const reply = triggers[firstWord];
+
+      if (reply) {
+        await message.reply(reply);
+        return; // đã xử lý trigger thì thôi
+      }
+      // nếu không có trong list triggers thì cho phép đi tiếp xuống dưới
+    }
 
     // 1) Slash command kiểu text
     if (content.startsWith('/')) {
