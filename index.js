@@ -1,5 +1,3 @@
-// index.js – lọc theo list, KHÔNG dùng Gemini / API
-
 require('dotenv').config();
 const {
   Client,
@@ -16,6 +14,9 @@ if (!DISCORD_TOKEN) {
 // ====== CẤU HÌNH ======
 const allowedCommands = ['/vidu']; // thêm lệnh slash hợp lệ nếu muốn
 const WARNING_LIFETIME_MS = 10_000; // cảnh báo giữ 10s rồi xóa
+
+// ====== ID CHỦ / ADMIN ĐẦU BÒT (WHITELIST TIMEOUT) ======
+const OWNER_ID = '875358286487097395';
 
 // ====== CẤU HÌNH TRIGGER "!" ======
 const triggers = {
@@ -47,7 +48,7 @@ const triggers = {
 
   // ==== NGÁO NGƠ ====
   '!meo': (id) => `Meowww 🐱`,
-  '!cho': (id) => `Grrrr… mày muốn tao cắn không🐶`,
+  '!cho': (id) => `Grrrr… mày muốn tao cắn không 🐶`,
   '!gau': (id) => `Gâu gâu cái gì <@${id}>? Nhìn là biết chó nhà ai rồi 😎🐾`,
   '!run': (id) => `Chạy hả <@${id}>? Tao đuổi kịp liền 😤🏃`,
 
@@ -69,7 +70,6 @@ const triggers = {
   '!puc': () => `<@894051913656578088> đang bán mình cho tư bản rồi, chưa thả về đâu 😭💼`,
 };
 
-
 // ID kênh 🎶︱music-request (chỉ cho dùng lệnh Rythm)
 const MUSIC_REQUEST_CHANNEL_ID = '1389843995135315979';
 // ID kênh 💬︱chung
@@ -86,56 +86,91 @@ function normalize(text) {
 // ====== LIST TỪ CẤM (HARD KEYWORD) ======
 const rawBannedWords = [
   // === TIẾNG VIỆT CỰC MẠNH + TEENCODE ===
-  "đm","dm","dmm","đmm","đkm","dkm","đcm","dcm","đcmm","dcmm","đcmnr","dcmnr","đmcs","dmcs","đmm","djt","djtm","djtme","ditme","dit me","ditm","djtmm","địt mẹ","dit mẹ","đụ","du ma","duma","du me","dume","đume","đuma",
-  "lồn","lon","lìn","lin","loz","lozz","l0n","l0z","l.ồn","l~ồn","lwng","lwn","lồnláo","lonlao","lồn má","lon ma","mặt lồn","mat lon","thằng lồn","thang lon",
-  "cặc","cak","kak","kac","cac","cacc","c4c","c4k","k4c","concac","c@c","cu","kỳ","kym","cục cức","cuc cuc",
-  "buồi","buoi","buoj","bùi","buj","bu0i","buoif","bú cu","bu cu","bucu","bú cặc","bu cak",
-  "địt","dit","djt","djtcon","địt con","dit con","đis","diz","địt mẹ mày","dit me may",
-  "chịch","chich","xoạc","nứng","nung","thẩm du","tham du","quay tay","quaytay","địt nhau","dit nhau",
-  "vét máng","vet mang","liếm lồn","liem lon","đụ lồn","du lon","đút cặc","dut cak",
-  "óc chó","oc cho","0c ch0","0ccho","oc lon",
-  "ngu lồn","ngu lon",
-  "chó đẻ","do cho","mẹ mày","me may",
-  "phò","phỏ","phó","ph0","ph0`","cave","ca ve","gái cave","đĩ","đĩ điếm","gái điếm","con đĩ","con di",
-  "thằng mặt lồn","thang mat lon","đầu buồi","dau buoi",
+  'đm','dm','dmm','đmm','đkm','dkm','đcm','dcm','đcmm','dcmm','đcmnr','dcmnr','đmcs','dmcs','đmm','djt','djtm','djtme','ditme','dit me','ditm','djtmm','địt mẹ','dit mẹ','đụ','du ma','duma','du me','dume','đume','đuma',
+  'lồn','lon','lìn','lin','loz','lozz','l0n','l0z','l.ồn','l~ồn','lwng','lwn','lồnláo','lonlao','lồn má','lon ma','mặt lồn','mat lon','thằng lồn','thang lon',
+  'cặc','cak','kak','kac','cac','cacc','c4c','c4k','k4c','concac','c@c','cu','kỳ','kym','cục cức','cuc cuc',
+  'buồi','buoi','buoj','bùi','buj','bu0i','buoif','bú cu','bu cu','bucu','bú cặc','bu cak',
+  'địt','dit','djt','djtcon','địt con','dit con','đis','diz','địt mẹ mày','dit me may',
+  'chịch','chich','xoạc','nứng','nung','thẩm du','tham du','quay tay','quaytay','địt nhau','dit nhau',
+  'vét máng','vet mang','liếm lồn','liem lon','đụ lồn','du lon','đút cặc','dut cak',
+  'óc chó','oc cho','0c ch0','0ccho','oc lon',
+  'ngu lồn','ngu lon',
+  'chó đẻ','do cho','mẹ mày','me may',
+  'phò','phỏ','phó','ph0','ph0`','cave','ca ve','gái cave','đĩ','đĩ điếm','gái điếm','con đĩ','con di',
+  'thằng mặt lồn','thang mat lon','đầu buồi','dau buoi',
 
-  "cc", "cl","cdmm","cmm", 
+  'cc', 'cl','cdmm','cmm',
 
   // === PHÂN BIỆT CHỦNG TỘC / KỲ THỊ ===
-  "nigger","nigga","niggas","neger","negro",
+  'nigger','nigga','niggas','neger','negro',
 
   // === TIẾNG ANH CỰC MẠNH + BIẾN THỂ ===
-  "motherfucker","mthfckr","mthfcker","mothefucker","mofucker","maderfaker",
-  "bitch","bjtch","b.i.t.c.h","bitcch","b1tch","beetch",
-  "cock","cok","c0ck","kock","cawk","cack","kok",
-  "dick","dik","d1ck","d1c","dic","deek",
-  "pussy","pusy","pussyy","puzzy","pucci","pussi","pu.ssy",
-  "asshole","ass","a.s.s","assh0le","a55","a55hole","azhole",
-  "cunt","cuntz","kunt","cnut","c.unt",
-  "whore","hoar","hore","ho","hoe","wh0re","whorre",
-  "slut","slutt","s.lut","s1ut","slvt",
-  "bastard","b4stard","basturd","basterd",
-  "nigger","nigga","niggah","niggaz","niger","nigers","niggar","nigg3r","n1gger","n166er",
-  "retard","retarded","r3tard","retart","reetard",
-  "faggot","fag","f4g","fagot","fagget","fagg0t",
-  "penis","pennis","penus","pe.nis","p3nis","cock","dick","vagina","v4gina","vag","vage","vag1na",
-  "wanker","w4nker","wank","wankr",
-  "cum","cumm","c.u.m","cvm","jizz","spunk",
-  "tits","titties","t1ts","boobs","b00bs","boobies",
-  "rape","raped","r4pe","rapist","rap3",
-  "kike","chink","gook","spic","wetback","beaner","porch monkey","coon","jewboy","sandnigger"
+  'motherfucker','mthfckr','mthfcker','mothefucker','mofucker','maderfaker',
+  'bitch','bjtch','b.i.t.c.h','bitcch','b1tch','beetch',
+  'cock','cok','c0ck','kock','cawk','cack','kok',
+  'dick','dik','d1ck','d1c','dic','deek',
+  'pussy','pusy','pussyy','puzzy','pucci','pussi','pu.ssy',
+  'asshole','ass','a.s.s','assh0le','a55','a55hole','azhole',
+  'cunt','cuntz','kunt','cnut','c.unt',
+  'whore','hoar','hore','ho','hoe','wh0re','whorre',
+  'slut','slutt','s.lut','s1ut','slvt',
+  'bastard','b4stard','basturd','basterd',
+  'nigger','nigga','niggah','niggaz','niger','nigers','niggar','nigg3r','n1gger','n166er',
+  'retard','retarded','r3tard','retart','reetard',
+  'faggot','fag','f4g','fagot','fagget','fagg0t',
+  'penis','pennis','penus','pe.nis','p3nis','cock','dick','vagina','v4gina','vag','vage','vag1na',
+  'wanker','w4nker','wank','wankr',
+  'cum','cumm','c.u.m','cvm','jizz','spunk',
+  'tits','titties','t1ts','boobs','b00bs','boobies',
+  'rape','raped','r4pe','rapist','rap3',
+  'kike','chink','gook','spic','wetback','beaner','porch monkey','coon','jewboy','sandnigger',
 ];
 
-const bannedWords = rawBannedWords.map((w) => normalize(w));
-const bannedWordsCompact = bannedWords.map((w) => w.replace(/\s+/g, ''));
+// ====== TIỀN XỬ LÝ TỪ CẤM ======
+function escapeRegex(str) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+const processedBannedWords = rawBannedWords.map((raw) => {
+  const norm = normalize(raw).trim();
+  const compact = norm.replace(/\s+/g, '');
+  const isPhrase = norm.includes(' ');
+  const isShortToken = !isPhrase && norm.length <= 3; // dm, cc, cl, dit,...
+  return {
+    raw,
+    norm,
+    compact,
+    isPhrase,
+    isShortToken,
+  };
+});
 
 function containsBannedWord(text) {
   const norm = normalize(text);
   const normNoSpace = norm.replace(/\s+/g, '');
-  return (
-    bannedWords.some((w) => norm.includes(w)) ||
-    bannedWordsCompact.some((w) => normNoSpace.includes(w))
-  );
+
+  for (const bw of processedBannedWords) {
+    // Cụm có dấu cách: "oc cho", "du ma", "dau buoi",...
+    if (bw.isPhrase) {
+      if (norm.includes(bw.norm)) return true;
+      if (normNoSpace.includes(bw.compact)) return true;
+      continue;
+    }
+
+    // Từ ngắn: dm, cl, cc,... → match nguyên từ
+    if (bw.isShortToken) {
+      const pattern = `\\b${escapeRegex(bw.norm)}\\b`;
+      const re = new RegExp(pattern, 'i');
+      if (re.test(norm)) return true;
+      continue;
+    }
+
+    // Từ dài 1 block: motherfucker, pussy, vagina,...
+    if (norm.includes(bw.norm)) return true;
+    if (normNoSpace.includes(bw.compact)) return true;
+  }
+
+  return false;
 }
 
 // ====== DISCORD BOT ======
@@ -191,6 +226,7 @@ async function handleViolation(message, options) {
   const user = message.author;
   const channel = message.channel;
   const userId = user.id;
+  const isOwner = userId === OWNER_ID;
 
   let count = 0;
   let remaining = null;
@@ -257,7 +293,7 @@ async function handleViolation(message, options) {
         `> Lý do: ${reasonText}` +
         extraLine;
     } else {
-      // SOFT: chỉ hiện đúng baseReason (ví dụ "Kênh này chỉ để gọi nhạc thôi bạn ơi...")
+      // SOFT: chỉ hiện đúng baseReason (ví dụ "Kênh này chỉ để gọi nhạc...")
       content = baseReason;
     }
 
@@ -273,9 +309,24 @@ async function handleViolation(message, options) {
     console.error('Không gửi được cảnh báo:', err);
   }
 
-  // HARD keyword → timeout
+  // HARD keyword → timeout (trừ OWNER)
   if (isHardKeyword && penaltyInfo.timeoutMs > 0) {
     const member = message.member;
+
+    // ====== ÔNG NỘI CỦA BÓT (OWNER) → KHÔNG MUTE ======
+    if (isOwner) {
+      try {
+        await channel.send(
+          `😏 <@${userId}> chửi tới trời luôn cũng không mute được.\n` +
+          `> <@${userId}> nó là bố tao, mina thông cảm, tao không dám đụng 😭`
+        );
+      } catch (err) {
+        console.error('Không gửi được meme cho OWNER:', err);
+      }
+      return;
+    }
+
+    // ====== USER THƯỜNG → MUTE NHƯ BÌNH THƯỜNG ======
     if (member && member.moderatable) {
       try {
         await member.timeout(
