@@ -15,12 +15,12 @@ if (!DISCORD_TOKEN) {
 const allowedCommands = ['/vidu']; // thêm lệnh slash hợp lệ nếu muốn
 const WARNING_LIFETIME_MS = 10_000; // cảnh báo giữ 10s rồi xóa
 
-// ====== ID CHỦ / ADMIN ĐẦU BÒT (WHITELIST TIMEOUT) ======
+// ====== ID CHỦ / ADMIN ĐẦU BÒT (WHITELIST TIMEOUT & CẢNH BÁO) ======
 const OWNER_ID = '875358286487097395';
 
 // ====== CẤU HÌNH TRIGGER "!" ======
 const triggers = {
-  '!botngu': (id) => `Ngu cũng tại mày đó <@${id}> 😏`,
+  '!botngu': (id) => `Kệ tao 😏`,
   '!hello': (id) => `Gọi tao chi? 😴`,
   '!ping': (id) => `Pong cái đầu mày 😤 Test hoài!`,
 
@@ -31,15 +31,10 @@ const triggers = {
   '!cute': (id) => `Cute hơn mày rõ ràng <@${id}> 😌✨`,
   '!chan': (id) => `Chán thì đi ngủ, đừng hành tao 😩`,
 
-  // ==== THÁCH SOLO ====
-  '!solo': (id) => `Solo không <@${id}>? Tao ban mày trước lấy lợi thế 😎🔥`,
-  '!pvp': (id) => `Nhào vô! 🤺`,
-  '!gap': (id) => `Gặp thì gặp, đừng sủa nhiều 😒`,
-
   // ==== CÀ KHỊA THEO TÊN ====
-  '!noob': (id) => `Noob như mày tao thấy thương luôn <@${id}> 😭`,
+  '!noob': (id) => `Mày số 1 <@${id}> 😌`,
   '!pro': (id) => `Không lẽ gà như mày <@${id}>? 😏🔥`,
-  '!lag': (id) => `Lag là do não mày chậm, chứ bot tao nhanh 😏⚡`,
+  '!lag': (id) => `Lag là do não mày load chậm, chứ tao nhanh lắm 😏⚡`,
 
   // ==== MEME CHUẨN TRẺ TRÂU ====
   '!sus': (id) => `Mày sus thấy sợ luôn á <@${id}> 😳🔪`,
@@ -48,14 +43,12 @@ const triggers = {
 
   // ==== NGÁO NGƠ ====
   '!meo': (id) => `Meowww 🐱`,
-  '!cho': (id) => `Grrrr… mày muốn tao cắn không 🐶`,
-  '!gau': (id) => `Gâu gâu cái gì <@${id}>? Nhìn là biết chó nhà ai rồi 😎🐾`,
-  '!run': (id) => `Chạy hả <@${id}>? Tao đuổi kịp liền 😤🏃`,
+  '!cho': (id) => `Grrrr… tao cắn mày giờ 🐶`,
+  '!gau': (id) => `Grrrr...`,
 
   // ==== TROLL KHÔNG LỐI VỀ (1–2 cái có dọa ban) ====
   '!ban': (id) => `Mày mà spam nữa <@${id}> tao ban chơi cho vui á 😤`,
-  '!bye': (id) => `Biến lẹ <@${id}>. Mà biến xa quá tao kick thiệt đó 😘`,
-  '!go': (id) => `Đi đâu <@${id}>? Đi xa tao ban mày à 😒`,
+  '!bye': (id) => `Biến`,
 
   // ==== NGẮN GỌN ====
   '!ok': (id) => `Ok con dê 🐐`,
@@ -63,9 +56,9 @@ const triggers = {
   '!huh': (id) => `Huh? Như nào? 😐`,
 
   // === Cà khịa member riêng ===
-  '!phatzeno': (id) => `Gọi <@864072941834862632> hả? Nó đứng dậy thôi là cái ghế hoảng loạn 😭🍔`,
-  '!feru': (id) => `<@874186912078921768> hả? Nó không đi bộ, nó lăn cho nhanh 😭🛞`,
-  '!wang': (id) => `<@493326232088346624> á? Sủa bậy bạ tao mute cho im giờ 😤🚫`,
+  '!phatzeno': (id) => `<@864072941834862632> là con lợn bel`,
+  '!feru': (id) => `<@874186912078921768> là con lợn bel`,
+  '!wang': (id) => `<@493326232088346624> sủa bậy bạ tao mute cho im giờ 😤🚫`,
   '!dii': (id) => `Con mẹ gì? Gọi bố chi? 😏✨ <@875358286487097395>`,
   '!puc': () => `<@894051913656578088> đang bán mình cho tư bản rồi, chưa thả về đâu 😭💼`,
 };
@@ -99,7 +92,7 @@ const rawBannedWords = [
   'phò','phỏ','phó','ph0','ph0`','cave','ca ve','gái cave','đĩ','đĩ điếm','gái điếm','con đĩ','con di',
   'thằng mặt lồn','thang mat lon','đầu buồi','dau buoi',
 
-  'cc', 'cl','cdmm','cmm',
+  'cc', 'cl','cdmm','cmm', 'clmm', 'clm',
 
   // === PHÂN BIỆT CHỦNG TỘC / KỲ THỊ ===
   'nigger','nigga','niggas','neger','negro',
@@ -228,6 +221,12 @@ async function handleViolation(message, options) {
   const userId = user.id;
   const isOwner = userId === OWNER_ID;
 
+  // 🌟 WHITELIST HOÀN TOÀN CHO OWNER: KHÔNG XOÁ, KHÔNG CẢNH BÁO, KHÔNG MUTE
+  if (isOwner) {
+    console.log(`👑 OWNER VIOLATION (${sourceTag}) – bỏ qua hết cho bố.`);
+    return;
+  }
+
   let count = 0;
   let remaining = null;
   let penaltyInfo = { timeoutMs: 0, currentStep: null, nextStep: null };
@@ -309,24 +308,10 @@ async function handleViolation(message, options) {
     console.error('Không gửi được cảnh báo:', err);
   }
 
-  // HARD keyword → timeout (trừ OWNER)
+  // HARD keyword → timeout
   if (isHardKeyword && penaltyInfo.timeoutMs > 0) {
     const member = message.member;
 
-    // ====== ÔNG NỘI CỦA BÓT (OWNER) → KHÔNG MUTE ======
-    if (isOwner) {
-      try {
-        await channel.send(
-          `😏 <@${userId}> chửi tới trời luôn cũng không mute được.\n` +
-          `> <@${userId}> nó là bố tao, mina thông cảm, tao không dám đụng 😭`
-        );
-      } catch (err) {
-        console.error('Không gửi được meme cho OWNER:', err);
-      }
-      return;
-    }
-
-    // ====== USER THƯỜNG → MUTE NHƯ BÌNH THƯỜNG ======
     if (member && member.moderatable) {
       try {
         await member.timeout(
