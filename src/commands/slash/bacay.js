@@ -66,7 +66,6 @@ const slashData = new SlashCommandBuilder()
 async function run(interaction) {
   // Defer removed
 
-
   const bet = interaction.options.getInteger("bet", true);
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
@@ -78,13 +77,16 @@ async function run(interaction) {
     balance = await getBalance(guildId, userId, admin);
   } catch (e) {
     console.error("getBalance error:", e);
-    return interaction.reply({ content: "❌ Lỗi ví tiền. Thử lại sau.", ephemeral: true });
+    return interaction.reply({
+      content: "❌ Lỗi ví tiền. Thử lại sau.",
+      ephemeral: true,
+    });
   }
 
   if (bet > balance) {
     return interaction.reply({
       content: `❌ Không đủ tiền! Số dư: **${fmt(balance)}**`,
-      ephemeral: true
+      ephemeral: true,
     });
   }
 
@@ -92,12 +94,14 @@ async function run(interaction) {
   try {
     balance = await addBalance(guildId, userId, -bet, admin);
   } catch (e) {
-    return interaction.reply({ content: "❌ Lỗi trừ tiền. Thử lại sau.", ephemeral: true });
+    return interaction.reply({
+      content: "❌ Lỗi trừ tiền. Thử lại sau.",
+      ephemeral: true,
+    });
   }
 
   // Validated & Paid -> Public
   await interaction.deferReply();
-  }
 
   // Start Game
   const state = startGame(bet);
