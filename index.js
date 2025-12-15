@@ -6,7 +6,7 @@ const { connectMongo } = require("./src/db/mongo");
 const { deploySlashCommands } = require("./src/discord/deploySlashCommands");
 
 const { onMessageCreate } = require("./src/features/moderation");
-const { onInteractionCreate } = require("./src/commands/slash/blackjack");
+const { onInteractionCreate } = require("./src/commands/router");
 
 if (!DISCORD_TOKEN) {
   console.error("❌ Thiếu DISCORD_TOKEN trong .env hoặc Railway Variables");

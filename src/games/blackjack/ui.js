@@ -12,11 +12,11 @@ function fmt(n) {
 }
 
 function resultLine(r) {
-  if (r === "BJ") return "✨ **BLACKJACK!** Bạn thắng (3:2)";
-  if (r === "DEALER_BJ") return "💀 Dealer BLACKJACK! Bạn thua";
-  if (r === "WIN") return "✅ Bạn thắng!";
-  if (r === "LOSE") return "❌ Bạn thua!";
-  if (r === "PUSH") return "🤝 Hòa (Push) – trả lại tiền cược";
+  if (r === "BJ") return "✨ **BLACKJACK!** Bạn thắng (x2.5)!";
+  if (r === "DEALER_BJ") return "💀 Dealer BLACKJACK! Bạn thua.";
+  if (r === "WIN") return "🏆 **Bạn thắng!**";
+  if (r === "LOSE") return "💸 **Bạn thua!**";
+  if (r === "PUSH") return "🤝 **Hòa (Push)** – Hoàn tiền cược";
   return "";
 }
 
@@ -33,10 +33,17 @@ function embed({ userId, state, balance, revealDealer }) {
 
   return new EmbedBuilder()
     .setTitle("🃏 BLACKJACK")
+    .setColor(
+      state.result === "WIN" || state.result === "BJ"
+        ? "Green"
+        : state.result === "LOSE" || state.result === "DEALER_BJ"
+        ? "Red"
+        : "Gold"
+    )
     .setDescription(
       `👤 <@${userId}>\n` +
-        `💰 Balance: **${fmt(balance)}**\n` +
-        `🎲 Bet: **${fmt(state.bet)}**${state.doubled ? " (x2 ✅)" : ""}`
+        `💰 Số dư: **${fmt(balance)}**\n` +
+        `🎲 Cược: **${fmt(state.bet)}**${state.doubled ? " (x2 🔥)" : ""}`
     )
     .addFields(
       {

@@ -86,7 +86,7 @@ async function start(interaction) {
 
     return interaction.editReply({
       embeds: [embed({ userId, state, balance, revealDealer: true })],
-      content: `${resultLine(state.result)}\n💵 Payout: **${fmt(pay)}**`,
+      content: `${resultLine(state.result)}\n💵 Tiền thưởng: **${fmt(pay)}**`,
       components: [],
     });
   }
@@ -121,7 +121,7 @@ async function onButton(interaction) {
   }
   if (interaction.user.id !== g.userId) {
     return interaction.followUp({
-      content: "Không phải ván của bạn 😼",
+      content: "Mày thích tấy mấy tay chân không 😼?",
       ephemeral: true,
     });
   }
@@ -155,7 +155,9 @@ async function onButton(interaction) {
         embeds: [
           embed({ userId, state: g.state, balance, revealDealer: true }),
         ],
-        content: `${resultLine(g.state.result)}\n💵 Payout: **${fmt(pay)}**`,
+        content: `${resultLine(g.state.result)}\n💵 Tiền thưởng: **${fmt(
+          pay
+        )}**`,
         components: [],
       });
     }
@@ -187,7 +189,7 @@ async function onButton(interaction) {
 
     return interaction.editReply({
       embeds: [embed({ userId, state: g.state, balance, revealDealer: true })],
-      content: `${resultLine(g.state.result)}\n💵 Payout: **${fmt(pay)}**`,
+      content: `${resultLine(g.state.result)}\n💵 Tiền thưởng: **${fmt(pay)}**`,
       components: [],
     });
   }
@@ -231,7 +233,7 @@ async function onButton(interaction) {
 
     return interaction.editReply({
       embeds: [embed({ userId, state: g.state, balance, revealDealer: true })],
-      content: `${resultLine(g.state.result)}\n💵 Payout: **${fmt(pay)}**`,
+      content: `${resultLine(g.state.result)}\n💵 Tiền thưởng: **${fmt(pay)}**`,
       components: [],
     });
   }
@@ -243,16 +245,52 @@ async function onButton(interaction) {
   });
 }
 
+const ALLOWED_CHANNELS = [
+  "1450065466772029481",
+  "1450065511231520778",
+  "1450065534312779776",
+  "1450067312160805047",
+];
+
+async function checkChannel(interaction) {
+  // Admin được quyền dùng mọi nơi
+  if (isAdmin(interaction.member)) return true;
+
+  // Nếu đúng kênh cho phép -> ok
+  if (ALLOWED_CHANNELS.includes(interaction.channelId)) return true;
+
+  // Nếu sai kênh -> báo lỗi + tự xóa sau 15s
+  const channelList = ALLOWED_CHANNELS.map((id) => `<#${id}>`).join(", ");
+  const msg = await interaction.reply({
+    content: `⚠️ **Vui lòng qua đúng kênh để chơi game:**\n👉 ${channelList}\n_(Tin nhắn tự xóa sau 15 giây)_`,
+    fetchReply: true,
+  });
+
+  setTimeout(() => {
+    msg.delete().catch(() => {});
+  }, 15000);
+
+  return false;
+}
+
 function onInteractionCreate(client) {
   return async (interaction) => {
     try {
       if (interaction.isChatInputCommand()) {
-        if (interaction.commandName === "blackjack") return start(interaction);
-        if (interaction.commandName === "wallet") return runWallet(interaction);
-        if (interaction.commandName === "blackjack-help")
-          return runHelp(interaction);
-        if (interaction.commandName === "blackjack-stats")
-          return runStats(interaction);
+        const cmd = interaction.commandName;
+        if (
+          ["blackjack", "wallet", "blackjack-help", "blackjack-stats"].includes(
+            cmd
+          )
+        ) {
+          // Check channel trước khi chạy lệnh
+          if (!(await checkChannel(interaction))) return;
+
+          if (cmd === "blackjack") return start(interaction);
+          if (cmd === "wallet") return runWallet(interaction);
+          if (cmd === "blackjack-help") return runHelp(interaction);
+          if (cmd === "blackjack-stats") return runStats(interaction);
+        }
       }
 
       if (interaction.isButton()) {

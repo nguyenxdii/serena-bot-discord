@@ -7,6 +7,11 @@ const { slashData: walletSlash } = require("../commands/slash/wallet");
 const { slashData: helpSlash } = require("../commands/slash/blackjack-help");
 const { slashData: statsSlash } = require("../commands/slash/blackjack-stats");
 
+const { slashData: bacaySlash } = require("../commands/slash/bacay");
+const { slashData: bacayHelp } = require("../commands/slash/bacay-help");
+const { slashData: bacayStats } = require("../commands/slash/bacay-stats");
+const { slashData: bacayTop } = require("../commands/slash/bacay-top");
+
 async function deploySlashCommands() {
   if (!DISCORD_TOKEN) return;
 
@@ -22,6 +27,10 @@ async function deploySlashCommands() {
     walletSlash.toJSON(),
     helpSlash.toJSON(),
     statsSlash.toJSON(),
+    bacaySlash.toJSON(),
+    bacayHelp.toJSON(),
+    bacayStats.toJSON(),
+    bacayTop.toJSON(),
   ];
 
   const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
