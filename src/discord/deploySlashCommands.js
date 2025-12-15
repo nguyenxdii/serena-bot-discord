@@ -1,7 +1,11 @@
 // src/discord/deploySlashCommands.js
 const { REST, Routes } = require("discord.js");
 const { DISCORD_TOKEN, APPLICATION_ID, GUILD_ID } = require("../config/env");
-const { slashData } = require("../commands/slash/blackjack");
+
+const { slashData: blackjackSlash } = require("../commands/slash/blackjack");
+const { slashData: walletSlash } = require("../commands/slash/wallet");
+const { slashData: helpSlash } = require("../commands/slash/blackjack-help");
+const { slashData: statsSlash } = require("../commands/slash/blackjack-stats");
 
 async function deploySlashCommands() {
   if (!DISCORD_TOKEN) return;
@@ -13,7 +17,13 @@ async function deploySlashCommands() {
     return;
   }
 
-  const commands = [slashData.toJSON()];
+  const commands = [
+    blackjackSlash.toJSON(),
+    walletSlash.toJSON(),
+    helpSlash.toJSON(),
+    statsSlash.toJSON(),
+  ];
+
   const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
 
   try {

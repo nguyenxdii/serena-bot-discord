@@ -1,5 +1,10 @@
 // src/commands/slash/blackjack.js
+const { run: runWallet } = require("./wallet");
+const { run: runHelp } = require("./blackjack-help");
+const { run: runStats } = require("./blackjack-stats");
+
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const { recordBlackjackRound } = require("../../features/blackjackStats");
 const {
   startGame,
   hit,
@@ -53,6 +58,10 @@ async function start(interaction) {
   if (state.status === "ENDED") {
     const pay = payout(state);
     balance = await addBalance(guildId, userId, pay, admin);
+
+    // ghi thống kê
+    await recordBlackjackRound(guildId, userId, state.result, state.bet, pay);
+
     return interaction.reply({
       embeds: [embed({ userId, state, balance, revealDealer: true })],
       content: `${resultLine(state.result)}\n💵 Payout: **${fmt(pay)}**`,
@@ -104,6 +113,14 @@ async function onButton(interaction) {
     if (g.state.status === "ENDED") {
       const pay = payout(g.state);
       balance = await addBalance(guildId, userId, pay, admin);
+      await recordBlackjackRound(
+        guildId,
+        userId,
+        g.state.result,
+        g.state.bet,
+        pay
+      );
+
       games.delete(gameId);
 
       return interaction.update({
@@ -126,6 +143,14 @@ async function onButton(interaction) {
     stand(g.state);
     const pay = payout(g.state);
     balance = await addBalance(guildId, userId, pay, admin);
+    await recordBlackjackRound(
+      guildId,
+      userId,
+      g.state.result,
+      g.state.bet,
+      pay
+    );
+
     games.delete(gameId);
 
     return interaction.update({
@@ -159,6 +184,14 @@ async function onButton(interaction) {
 
     const pay = payout(g.state);
     balance = await addBalance(guildId, userId, pay, admin);
+    await recordBlackjackRound(
+      guildId,
+      userId,
+      g.state.result,
+      g.state.bet,
+      pay
+    );
+
     games.delete(gameId);
 
     return interaction.update({
@@ -174,6 +207,11 @@ function onInteractionCreate(client) {
     try {
       if (interaction.isChatInputCommand()) {
         if (interaction.commandName === "blackjack") return start(interaction);
+        if (interaction.commandName === "wallet") return runWallet(interaction);
+        if (interaction.commandName === "blackjack-help")
+          return runHelp(interaction);
+        if (interaction.commandName === "blackjack-stats")
+          return runStats(interaction);
       }
       if (interaction.isButton()) {
         if (interaction.customId.startsWith("bj:"))
