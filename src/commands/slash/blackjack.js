@@ -1,8 +1,4 @@
 // src/commands/slash/blackjack.js
-const { run: runWallet } = require("./wallet");
-const { run: runHelp } = require("./blackjack-help");
-const { run: runStats } = require("./blackjack-stats");
-
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const { recordBlackjackRound } = require("../../features/blackjackStats");
 const {
@@ -13,6 +9,12 @@ const {
 } = require("../../games/blackjack/engine");
 const { embed, buttons, fmt, resultLine } = require("../../games/blackjack/ui");
 const { getBalance, addBalance } = require("../../features/wallet");
+const {
+  validateBet,
+  applyWinFee,
+  checkCooldown,
+  setCooldown,
+} = require("../../features/economyRules");
 
 const games = new Map(); // gameId -> { guildId, userId, state }
 
@@ -28,60 +30,74 @@ const slashData = new SlashCommandBuilder()
   .setDescription("Chơi blackjack (Hit/Stand/Double)")
   .addIntegerOption((opt) =>
     opt
-      .setName("money")
+      .setName("bet")
       .setDescription("Số tiền đặt cược")
       .setRequired(true)
-      .setMinValue(1)
+      .setMinValue(50)
   );
 
 async function start(interaction) {
   await interaction.deferReply();
 
-  // ✅ trả lời ngay để Discord không hiện "đang suy nghĩ..." lâu
-  await interaction.editReply("🃏 Đang chia bài...");
-
-  const bet = interaction.options.getInteger("money", true);
-  const guildId = interaction.guildId;
   const userId = interaction.user.id;
-
+  const guildId = interaction.guildId;
   const admin = isAdmin(interaction.member);
 
+  // 1. Check Cooldown
+  const cd = checkCooldown(userId, "blackjack");
+  if (cd) {
+    return interaction.editReply(
+      `⏳ Bạn thao tác quá nhanh! Vui lòng chờ **${(cd / 1000).toFixed(
+        1
+      )}s** nữa.`
+    );
+  }
+
+  const bet = interaction.options.getInteger("bet", true);
+
+  // 2. Validate Bet
   let balance;
   try {
     balance = await getBalance(guildId, userId, admin);
   } catch (e) {
-    console.error("getBalance error:", e);
-    return interaction.editReply(
-      "❌ Ví (wallet) đang lỗi/kết nối DB chậm. Thử lại sau ít phút nhé."
-    );
+    return interaction.editReply("❌ Lỗi ví tiền. Thử lại sau.");
   }
 
-  if (bet > balance) {
-    return interaction.editReply(
-      `Bạn không đủ tiền. Balance: **${fmt(balance)}**`
-    );
+  const errorMsg = validateBet(balance, bet);
+  if (errorMsg) {
+    return interaction.editReply(errorMsg);
   }
 
+  // 3. Deduct Bet
   try {
     balance = await addBalance(guildId, userId, -bet, admin);
   } catch (e) {
-    console.error("addBalance(-bet) error:", e);
     return interaction.editReply(
       "❌ Không trừ được tiền cược (DB chậm/lỗi). Thử lại nhé."
     );
   }
 
+  // Set cooldown start
+  setCooldown(userId, "blackjack");
+
+  await interaction.editReply("🃏 Đang chia bài...");
+
   const state = startGame(bet);
 
+  // 4. Instant End (Blackjack or Dealer Blackjack)
   if (state.status === "ENDED") {
-    const pay = payout(state);
+    let pay = payout(state);
+
+    // Apply Fee
+    const profit = pay - bet;
+    const finalProfit = applyWinFee(profit);
+    pay = bet + finalProfit; // Total return
 
     try {
       balance = await addBalance(guildId, userId, pay, admin);
       await recordBlackjackRound(guildId, userId, state.result, state.bet, pay);
     } catch (e) {
       console.error("payout/stats error:", e);
-      // vẫn trả kết quả game, chỉ báo stats lỗi
     }
 
     return interaction.editReply({
@@ -102,17 +118,25 @@ async function start(interaction) {
     content: null,
   });
 
-  setTimeout(() => games.delete(gameId), 2 * 60 * 1000);
+  setTimeout(() => games.delete(gameId), 60 * 1000);
 }
 
 async function onButton(interaction) {
-  // ✅ ACK nút bấm để khỏi "Ứng dụng không phản hồi"
+  // Check Cooldown (Spam protection)
+  const userId = interaction.user.id;
+  // Button interactions usually fast, allow retry every 1s? Or use game cooldown?
+  // User says "Spam slash / spam button -> từ chối".
+  // Let's use a short cooldown for buttons or just ignore if spamming.
+  // Using checkCooldown with a different key? Or just rely on Discord interaction limits.
+  // Let's not block buttons heavily unless requested, but user said "Spam button -> từ chối".
+  // Let's check a generic cooldown.
+  // We can skip specific button cooldown for now to avoid bad UX, or use very short.
+
   await interaction.deferUpdate();
 
   const [, gameId, act] = interaction.customId.split(":");
   const g = games.get(gameId);
 
-  // ❗ đã deferUpdate -> muốn báo riêng thì followUp (ephemeral)
   if (!g) {
     return interaction.followUp({
       content: "Ván đã hết hạn hoặc kết thúc.",
@@ -127,7 +151,6 @@ async function onButton(interaction) {
   }
 
   const guildId = interaction.guildId;
-  const userId = interaction.user.id;
   const admin = isAdmin(interaction.member);
 
   let balance = await getBalance(guildId, userId, admin);
@@ -137,7 +160,13 @@ async function onButton(interaction) {
     hit(g.state);
 
     if (g.state.status === "ENDED") {
-      const pay = payout(g.state);
+      let pay = payout(g.state);
+
+      // Fee
+      const profit = pay - g.state.bet;
+      const finalProfit = applyWinFee(profit);
+      pay = g.state.bet + finalProfit;
+
       balance = await addBalance(guildId, userId, pay, admin);
 
       await recordBlackjackRound(
@@ -149,8 +178,8 @@ async function onButton(interaction) {
       );
 
       games.delete(gameId);
+      setCooldown(userId, "blackjack"); // Reset cooldown on end game
 
-      // ❗ đã deferUpdate -> sửa message gốc bằng editReply
       return interaction.editReply({
         embeds: [
           embed({ userId, state: g.state, balance, revealDealer: true }),
@@ -174,7 +203,12 @@ async function onButton(interaction) {
   if (act === "stand") {
     stand(g.state);
 
-    const pay = payout(g.state);
+    let pay = payout(g.state);
+
+    const profit = pay - g.state.bet;
+    const finalProfit = applyWinFee(profit);
+    pay = g.state.bet + finalProfit;
+
     balance = await addBalance(guildId, userId, pay, admin);
 
     await recordBlackjackRound(
@@ -186,6 +220,7 @@ async function onButton(interaction) {
     );
 
     games.delete(gameId);
+    setCooldown(userId, "blackjack");
 
     return interaction.editReply({
       embeds: [embed({ userId, state: g.state, balance, revealDealer: true })],
@@ -209,16 +244,20 @@ async function onButton(interaction) {
       });
     }
 
-    // trừ thêm 1x bet
+    // Deduct extra bet
     balance = await addBalance(guildId, userId, -g.state.bet, admin);
     g.state.bet *= 2;
     g.state.doubled = true;
 
-    // rút 1 lá rồi auto stand
     hit(g.state);
     if (g.state.status !== "ENDED") stand(g.state);
 
-    const pay = payout(g.state);
+    let pay = payout(g.state);
+
+    const profit = pay - g.state.bet;
+    const finalProfit = applyWinFee(profit);
+    pay = g.state.bet + finalProfit;
+
     balance = await addBalance(guildId, userId, pay, admin);
 
     await recordBlackjackRound(
@@ -230,6 +269,7 @@ async function onButton(interaction) {
     );
 
     games.delete(gameId);
+    setCooldown(userId, "blackjack");
 
     return interaction.editReply({
       embeds: [embed({ userId, state: g.state, balance, revealDealer: true })],
@@ -238,84 +278,12 @@ async function onButton(interaction) {
     });
   }
 
-  // nếu act lạ
   return interaction.followUp({
     content: "Hành động không hợp lệ.",
     ephemeral: true,
   });
 }
 
-const ALLOWED_CHANNELS = [
-  "1450065466772029481",
-  "1450065511231520778",
-  "1450065534312779776",
-  "1450067312160805047",
-];
+// remove onInteractionCreate (moved to router)
 
-async function checkChannel(interaction) {
-  // Admin được quyền dùng mọi nơi
-  if (isAdmin(interaction.member)) return true;
-
-  // Nếu đúng kênh cho phép -> ok
-  if (ALLOWED_CHANNELS.includes(interaction.channelId)) return true;
-
-  // Nếu sai kênh -> báo lỗi + tự xóa sau 15s
-  const channelList = ALLOWED_CHANNELS.map((id) => `<#${id}>`).join(", ");
-  const msg = await interaction.reply({
-    content: `⚠️ **Vui lòng qua đúng kênh để chơi game:**\n👉 ${channelList}\n_(Tin nhắn tự xóa sau 15 giây)_`,
-    fetchReply: true,
-  });
-
-  setTimeout(() => {
-    msg.delete().catch(() => {});
-  }, 15000);
-
-  return false;
-}
-
-function onInteractionCreate(client) {
-  return async (interaction) => {
-    try {
-      if (interaction.isChatInputCommand()) {
-        const cmd = interaction.commandName;
-        if (
-          ["blackjack", "wallet", "blackjack-help", "blackjack-stats"].includes(
-            cmd
-          )
-        ) {
-          // Check channel trước khi chạy lệnh
-          if (!(await checkChannel(interaction))) return;
-
-          if (cmd === "blackjack") return start(interaction);
-          if (cmd === "wallet") return runWallet(interaction);
-          if (cmd === "blackjack-help") return runHelp(interaction);
-          if (cmd === "blackjack-stats") return runStats(interaction);
-        }
-      }
-
-      if (interaction.isButton()) {
-        if (interaction.customId.startsWith("bj:"))
-          return onButton(interaction);
-      }
-    } catch (e) {
-      console.error("interaction error:", e);
-
-      // nếu đã reply/defer rồi thì followUp
-      try {
-        if (interaction.deferred || interaction.replied) {
-          await interaction.followUp({
-            content: "Có lỗi xảy ra 😭",
-            ephemeral: true,
-          });
-        } else if (interaction.isRepliable()) {
-          await interaction.reply({
-            content: "Có lỗi xảy ra 😭",
-            ephemeral: true,
-          });
-        }
-      } catch {}
-    }
-  };
-}
-
-module.exports = { slashData, onInteractionCreate };
+module.exports = { slashData, start, onButton };

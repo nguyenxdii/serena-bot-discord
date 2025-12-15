@@ -4,6 +4,7 @@ const { DISCORD_TOKEN, APPLICATION_ID, GUILD_ID } = require("../config/env");
 
 const { slashData: blackjackSlash } = require("../commands/slash/blackjack");
 const { slashData: walletSlash } = require("../commands/slash/wallet");
+const { slashData: dailySlash } = require("../commands/slash/daily");
 const { slashData: helpSlash } = require("../commands/slash/blackjack-help");
 const { slashData: statsSlash } = require("../commands/slash/blackjack-stats");
 
@@ -25,6 +26,7 @@ async function deploySlashCommands() {
   const commands = [
     blackjackSlash.toJSON(),
     walletSlash.toJSON(),
+    dailySlash.toJSON(),
     helpSlash.toJSON(),
     statsSlash.toJSON(),
     bacaySlash.toJSON(),
