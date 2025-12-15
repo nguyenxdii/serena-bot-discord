@@ -85,7 +85,7 @@ async function recordBlackjackRound(guildId, userId, result, bet, pay) {
     { returnDocument: "after" }
   );
 
-  return res.value;
+  return res;
 }
 
 async function getBlackjackStats(guildId, userId) {

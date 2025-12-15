@@ -75,8 +75,8 @@ async function addBalance(guildId, userId, delta, isAdmin) {
     { returnDocument: "after" }
   );
 
-  // res.value luôn phải có nếu findOneAndUpdate ok
-  return res.value.balance;
+  // res là document user luôn nếu findOneAndUpdate ok (với returnDocument: 'after')
+  return res.balance;
 }
 
 module.exports = {
