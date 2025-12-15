@@ -480,7 +480,7 @@ async function handleViolation(message, options) {
   const isOwner = userId === OWNER_ID;
 
   if (isOwner) {
-    console.log(`👑 OWNER VIOLATION (${sourceTag}) – bỏ qua hết cho bố.`);
+    console.log(`👑 OWNER VIOLATION (${sourceTag}) – bỏ qua hết cho bố`);
     return;
   }
 
