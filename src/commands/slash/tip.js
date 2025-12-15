@@ -176,7 +176,7 @@ async function run(interaction) {
         });
       }
 
-      setCd(sender.id, COOLDOWN_KEY, COOLDOWN_TIME);
+      setCooldown(sender.id, COOLDOWN_KEY, COOLDOWN_TIME);
       logTransaction({
         type: "TIP",
         fromUserId: sender.id,
