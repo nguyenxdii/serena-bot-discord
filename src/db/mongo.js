@@ -14,7 +14,13 @@ async function connectMongo() {
   }
   if (db) return db;
 
-  client = new MongoClient(MONGODB_URI);
+  client = new MongoClient(MONGODB_URI, {
+    // ✅ chống treo vô hạn
+    serverSelectionTimeoutMS: 5000, // tìm server tối đa 5s
+    connectTimeoutMS: 5000, // connect tối đa 5s
+    socketTimeoutMS: 10000, // request tối đa 10s
+  });
+
   await client.connect();
   db = client.db("bot_discord");
   console.log("✅ MongoDB connected");

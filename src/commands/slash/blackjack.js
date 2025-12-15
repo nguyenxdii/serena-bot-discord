@@ -35,37 +35,54 @@ const slashData = new SlashCommandBuilder()
   );
 
 async function start(interaction) {
-  // ✅ Tránh timeout 3s
   await interaction.deferReply();
+
+  // ✅ trả lời ngay để Discord không hiện "đang suy nghĩ..." lâu
+  await interaction.editReply("🃏 Đang chia bài...");
 
   const bet = interaction.options.getInteger("money", true);
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
 
   const admin = isAdmin(interaction.member);
-  let balance = await getBalance(guildId, userId, admin);
 
-  if (bet > balance) {
-    // ❗ đã deferReply -> dùng editReply
-    return interaction.editReply({
-      content: `Bạn không đủ tiền. Balance: **${fmt(balance)}**`,
-      components: [],
-      embeds: [],
-    });
+  let balance;
+  try {
+    balance = await getBalance(guildId, userId, admin);
+  } catch (e) {
+    console.error("getBalance error:", e);
+    return interaction.editReply(
+      "❌ Ví (wallet) đang lỗi/kết nối DB chậm. Thử lại sau ít phút nhé."
+    );
   }
 
-  // trừ bet trước
-  balance = await addBalance(guildId, userId, -bet, admin);
+  if (bet > balance) {
+    return interaction.editReply(
+      `Bạn không đủ tiền. Balance: **${fmt(balance)}**`
+    );
+  }
+
+  try {
+    balance = await addBalance(guildId, userId, -bet, admin);
+  } catch (e) {
+    console.error("addBalance(-bet) error:", e);
+    return interaction.editReply(
+      "❌ Không trừ được tiền cược (DB chậm/lỗi). Thử lại nhé."
+    );
+  }
 
   const state = startGame(bet);
 
-  // nếu mở bài đã END (BJ / Dealer BJ / Push)
   if (state.status === "ENDED") {
     const pay = payout(state);
-    balance = await addBalance(guildId, userId, pay, admin);
 
-    // ghi thống kê
-    await recordBlackjackRound(guildId, userId, state.result, state.bet, pay);
+    try {
+      balance = await addBalance(guildId, userId, pay, admin);
+      await recordBlackjackRound(guildId, userId, state.result, state.bet, pay);
+    } catch (e) {
+      console.error("payout/stats error:", e);
+      // vẫn trả kết quả game, chỉ báo stats lỗi
+    }
 
     return interaction.editReply({
       embeds: [embed({ userId, state, balance, revealDealer: true })],
@@ -77,16 +94,14 @@ async function start(interaction) {
   const gameId = makeId();
   games.set(gameId, { guildId, userId, state });
 
-  // allowDouble: đủ tiền để trừ thêm 1x bet + chỉ khi 2 lá
   const allowDouble = state.player.length === 2 && balance >= bet;
 
-  // ❗ đã deferReply -> dùng editReply (không dùng reply)
   await interaction.editReply({
     embeds: [embed({ userId, state, balance, revealDealer: false })],
     components: buttons(gameId, { disabled: false, allowDouble }),
+    content: null,
   });
 
-  // auto expire (2 phút)
   setTimeout(() => games.delete(gameId), 2 * 60 * 1000);
 }
 
