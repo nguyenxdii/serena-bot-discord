@@ -35,6 +35,8 @@ const slashData = new SlashCommandBuilder()
   );
 
 async function start(interaction) {
+  await interaction.deferReply(); // ✅ tránh timeout 3s
+
   const bet = interaction.options.getInteger("money", true);
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
@@ -88,6 +90,7 @@ async function start(interaction) {
 }
 
 async function onButton(interaction) {
+  await interaction.deferUpdate();
   const [_, gameId, act] = interaction.customId.split(":");
   const g = games.get(gameId);
   if (!g)

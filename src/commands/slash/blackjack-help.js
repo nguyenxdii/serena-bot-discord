@@ -28,7 +28,7 @@ async function run(interaction) {
         "  - Rút **1 lá** rồi **tự động Stand**",
         "",
         "**🤵 Luật Dealer**",
-        "• Dealer sẽ rút đến khi **đủ 17 điểm trở lên**",
+        "• Dealer sẽ rút đến khi **đủ 16 điểm trở lên**",
         "",
         "**💰 Trả thưởng** (vì bot trừ cược trước khi chơi)",
         "• **Thắng thường:** nhận lại **x2 cược**",

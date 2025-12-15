@@ -43,7 +43,7 @@ function hit(state) {
 }
 
 function dealerPlay(state) {
-  while (handValue(state.dealer) < 17) state.dealer.push(draw(state.deck));
+  while (handValue(state.dealer) < 16) state.dealer.push(draw(state.deck));
 }
 
 function stand(state) {
