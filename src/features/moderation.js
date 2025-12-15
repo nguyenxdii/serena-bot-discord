@@ -194,10 +194,11 @@ function onMessageCreate(client) {
         // Block user messages
         try {
           await message.delete();
-          const warn = await message.channel.send(
-            `<@${message.author.id}> 🤫 Kênh này chỉ dùng để nhập lệnh \`/daily\` thôi nhé!`
-          );
-          setTimeout(() => warn.delete().catch(() => {}), 5000);
+          await message.author
+            .send(
+              `🤫 Kênh <#${message.channel.id}> chỉ dùng để nhập lệnh \`/daily\` thôi nhé!`
+            )
+            .catch(() => {});
         } catch (e) {}
         return;
       }
