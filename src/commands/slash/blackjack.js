@@ -14,7 +14,7 @@ const {
 const { embed, buttons, fmt, resultLine } = require("../../games/blackjack/ui");
 const { getBalance, addBalance } = require("../../features/wallet");
 
-const games = new Map(); // id -> { guildId, userId, state }
+const games = new Map(); // gameId -> { guildId, userId, state }
 
 function makeId() {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -25,7 +25,7 @@ function isAdmin(member) {
 
 const slashData = new SlashCommandBuilder()
   .setName("blackjack")
-  .setDescription("Chơi blackjack (nút bấm Hit/Stand/Double)")
+  .setDescription("Chơi blackjack (Hit/Stand/Double)")
   .addIntegerOption((opt) =>
     opt
       .setName("money")
@@ -35,7 +35,8 @@ const slashData = new SlashCommandBuilder()
   );
 
 async function start(interaction) {
-  await interaction.deferReply(); // ✅ tránh timeout 3s
+  // ✅ Tránh timeout 3s
+  await interaction.deferReply();
 
   const bet = interaction.options.getInteger("money", true);
   const guildId = interaction.guildId;
@@ -45,9 +46,11 @@ async function start(interaction) {
   let balance = await getBalance(guildId, userId, admin);
 
   if (bet > balance) {
-    return interaction.reply({
+    // ❗ đã deferReply -> dùng editReply
+    return interaction.editReply({
       content: `Bạn không đủ tiền. Balance: **${fmt(balance)}**`,
-      ephemeral: true,
+      components: [],
+      embeds: [],
     });
   }
 
@@ -56,7 +59,7 @@ async function start(interaction) {
 
   const state = startGame(bet);
 
-  // nếu mở bài đã END (BJ)
+  // nếu mở bài đã END (BJ / Dealer BJ / Push)
   if (state.status === "ENDED") {
     const pay = payout(state);
     balance = await addBalance(guildId, userId, pay, admin);
@@ -64,7 +67,7 @@ async function start(interaction) {
     // ghi thống kê
     await recordBlackjackRound(guildId, userId, state.result, state.bet, pay);
 
-    return interaction.reply({
+    return interaction.editReply({
       embeds: [embed({ userId, state, balance, revealDealer: true })],
       content: `${resultLine(state.result)}\n💵 Payout: **${fmt(pay)}**`,
       components: [],
@@ -77,32 +80,36 @@ async function start(interaction) {
   // allowDouble: đủ tiền để trừ thêm 1x bet + chỉ khi 2 lá
   const allowDouble = state.player.length === 2 && balance >= bet;
 
-  const msg = await interaction.reply({
+  // ❗ đã deferReply -> dùng editReply (không dùng reply)
+  await interaction.editReply({
     embeds: [embed({ userId, state, balance, revealDealer: false })],
     components: buttons(gameId, { disabled: false, allowDouble }),
-    fetchReply: true,
   });
 
   // auto expire (2 phút)
   setTimeout(() => games.delete(gameId), 2 * 60 * 1000);
-
-  return msg;
 }
 
 async function onButton(interaction) {
+  // ✅ ACK nút bấm để khỏi "Ứng dụng không phản hồi"
   await interaction.deferUpdate();
-  const [_, gameId, act] = interaction.customId.split(":");
+
+  const [, gameId, act] = interaction.customId.split(":");
   const g = games.get(gameId);
-  if (!g)
-    return interaction.reply({
+
+  // ❗ đã deferUpdate -> muốn báo riêng thì followUp (ephemeral)
+  if (!g) {
+    return interaction.followUp({
       content: "Ván đã hết hạn hoặc kết thúc.",
       ephemeral: true,
     });
-  if (interaction.user.id !== g.userId)
-    return interaction.reply({
+  }
+  if (interaction.user.id !== g.userId) {
+    return interaction.followUp({
       content: "Không phải ván của bạn 😼",
       ephemeral: true,
     });
+  }
 
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
@@ -110,12 +117,14 @@ async function onButton(interaction) {
 
   let balance = await getBalance(guildId, userId, admin);
 
+  // HIT
   if (act === "hit") {
     hit(g.state);
 
     if (g.state.status === "ENDED") {
       const pay = payout(g.state);
       balance = await addBalance(guildId, userId, pay, admin);
+
       await recordBlackjackRound(
         guildId,
         userId,
@@ -126,7 +135,8 @@ async function onButton(interaction) {
 
       games.delete(gameId);
 
-      return interaction.update({
+      // ❗ đã deferUpdate -> sửa message gốc bằng editReply
+      return interaction.editReply({
         embeds: [
           embed({ userId, state: g.state, balance, revealDealer: true }),
         ],
@@ -136,16 +146,20 @@ async function onButton(interaction) {
     }
 
     const allowDouble = g.state.player.length === 2 && balance >= g.state.bet;
-    return interaction.update({
+
+    return interaction.editReply({
       embeds: [embed({ userId, state: g.state, balance, revealDealer: false })],
       components: buttons(gameId, { disabled: false, allowDouble }),
     });
   }
 
+  // STAND
   if (act === "stand") {
     stand(g.state);
+
     const pay = payout(g.state);
     balance = await addBalance(guildId, userId, pay, admin);
+
     await recordBlackjackRound(
       guildId,
       userId,
@@ -156,25 +170,27 @@ async function onButton(interaction) {
 
     games.delete(gameId);
 
-    return interaction.update({
+    return interaction.editReply({
       embeds: [embed({ userId, state: g.state, balance, revealDealer: true })],
       content: `${resultLine(g.state.result)}\n💵 Payout: **${fmt(pay)}**`,
       components: [],
     });
   }
 
+  // DOUBLE
   if (act === "double") {
-    // double chỉ khi còn 2 lá và đủ tiền thêm 1x bet
-    if (g.state.player.length !== 2)
-      return interaction.reply({
+    if (g.state.player.length !== 2) {
+      return interaction.followUp({
         content: "Double chỉ dùng khi bạn mới có 2 lá.",
         ephemeral: true,
       });
-    if (balance < g.state.bet)
-      return interaction.reply({
+    }
+    if (balance < g.state.bet) {
+      return interaction.followUp({
         content: "Không đủ tiền để Double.",
         ephemeral: true,
       });
+    }
 
     // trừ thêm 1x bet
     balance = await addBalance(guildId, userId, -g.state.bet, admin);
@@ -187,6 +203,7 @@ async function onButton(interaction) {
 
     const pay = payout(g.state);
     balance = await addBalance(guildId, userId, pay, admin);
+
     await recordBlackjackRound(
       guildId,
       userId,
@@ -197,12 +214,18 @@ async function onButton(interaction) {
 
     games.delete(gameId);
 
-    return interaction.update({
+    return interaction.editReply({
       embeds: [embed({ userId, state: g.state, balance, revealDealer: true })],
       content: `${resultLine(g.state.result)}\n💵 Payout: **${fmt(pay)}**`,
       components: [],
     });
   }
+
+  // nếu act lạ
+  return interaction.followUp({
+    content: "Hành động không hợp lệ.",
+    ephemeral: true,
+  });
 }
 
 function onInteractionCreate(client) {
@@ -216,20 +239,28 @@ function onInteractionCreate(client) {
         if (interaction.commandName === "blackjack-stats")
           return runStats(interaction);
       }
+
       if (interaction.isButton()) {
         if (interaction.customId.startsWith("bj:"))
           return onButton(interaction);
       }
     } catch (e) {
       console.error("interaction error:", e);
-      if (interaction.isRepliable()) {
-        try {
+
+      // nếu đã reply/defer rồi thì followUp
+      try {
+        if (interaction.deferred || interaction.replied) {
+          await interaction.followUp({
+            content: "Có lỗi xảy ra 😭",
+            ephemeral: true,
+          });
+        } else if (interaction.isRepliable()) {
           await interaction.reply({
             content: "Có lỗi xảy ra 😭",
             ephemeral: true,
           });
-        } catch {}
-      }
+        }
+      } catch {}
     }
   };
 }
