@@ -46,18 +46,39 @@ async function addBalance(guildId, userId, delta, isAdmin) {
   const c = col();
   const key = `${guildId}:${userId}`;
 
+  // memory mode
   if (!c) {
     await ensureUser(guildId, userId, isAdmin);
     mem.set(key, (mem.get(key) || 0) + delta);
     return mem.get(key);
   }
 
-  await ensureUser(guildId, userId, isAdmin);
+  // ✅ Upsert thẳng ở đây để chắc chắn luôn có doc
+  const initialBalance = isAdmin ? ADMIN_TEST_COINS : DEFAULT_USER_COINS;
+
   const res = await c.findOneAndUpdate(
     { guildId, userId },
-    { $inc: { balance: delta }, $set: { updatedAt: new Date() } },
-    { returnDocument: "after" }
+    {
+      $inc: { balance: delta },
+      $set: { updatedAt: new Date() },
+      $setOnInsert: {
+        balance: initialBalance,
+        createdAt: new Date(),
+      },
+    },
+    {
+      upsert: true,
+      returnDocument: "after",
+    }
   );
+
+  // ✅ Fix: đôi khi res.value bị undefined/null -> fallback
+  if (!res || !res.value) {
+    const doc = await c.findOne({ guildId, userId });
+    if (!doc) throw new Error("Wallet upsert/update failed: user doc missing");
+    return doc.balance;
+  }
+
   return res.value.balance;
 }
 
