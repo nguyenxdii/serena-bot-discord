@@ -3,17 +3,23 @@ const {
   Client,
   GatewayIntentBits,
   PermissionsBitField,
+  REST,
+  Routes,
+  SlashCommandBuilder,
 } = require("discord.js");
 
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
+const APPLICATION_ID = process.env.APPLICATION_ID || process.env.CLIENT_ID; // Railway đang dùng APPLICATION_ID
+const GUILD_ID = process.env.GUILD_ID;
+
 if (!DISCORD_TOKEN) {
   console.error("❌ Thiếu DISCORD_TOKEN trong .env hoặc Railway Variables");
   process.exit(1);
 }
 
 // ====== CẤU HÌNH ======
-const allowedCommands = ["/vidu"]; // thêm lệnh slash hợp lệ nếu muốn
-const WARNING_LIFETIME_MS = 10_000; // cảnh báo giữ 10s rồi xóa
+const allowedCommands = ["/vidu"]; // "slash command kiểu text" (messageCreate) - không liên quan slash thật
+const WARNING_LIFETIME_MS = 10_000;
 
 // ====== ID CHỦ / ADMIN ĐẦU BÒT (WHITELIST TIMEOUT & CẢNH BÁO) ======
 const OWNER_ID = "875358286487097395";
@@ -24,38 +30,31 @@ const triggers = {
   "!hello": (id) => `Gọi tao chi? 😴`,
   "!ping": (id) => `Pong cái đầu mày 😤 Test hoài!`,
 
-  // ==== CÀ KHỊA GẮT ====
   "!ga": (id) => `Gà như mày đó <@${id}> 🐔🤣`,
   "!vl": (id) => `Vl mẹ gì <@${id}>? tao ban mày giờ! 😭`,
   "!sad": (id) => `Buồn mẹ gì <@${id}>, lớn rồi 😭`,
   "!cute": (id) => `Cute hơn mày rõ ràng <@${id}> 😌✨`,
   "!chan": (id) => `Chán thì đi ngủ, đừng hành tao 😩`,
 
-  // ==== CÀ KHỊA THEO TÊN ====
   "!noob": (id) => `Mày số 1 <@${id}> 😌`,
   "!pro": (id) => `Không lẽ gà như mày <@${id}>? 😏🔥`,
   "!lag": (id) => `Lag là do não mày load chậm, chứ tao nhanh lắm 😏⚡`,
 
-  // ==== MEME CHUẨN TRẺ TRÂU ====
   "!sus": (id) => `Mày sus thấy sợ luôn á <@${id}> 😳🔪`,
   "!wtf": (id) => `Wtf cái gì <@${id}>?, chửi tao ban mày giờ!😼`,
   "!bru": (id) => `Bruhhh... 🤦`,
 
-  // ==== NGÁO NGƠ ====
   "!meo": (id) => `Meowww 🐱`,
   "!cho": (id) => `Grrrr… tao cắn mày giờ 🐶`,
   "!gau": (id) => `Grrrr...`,
 
-  // ==== TROLL KHÔNG LỐI VỀ (1–2 cái có dọa ban) ====
   "!ban": (id) => `Mày mà spam nữa <@${id}> tao ban chơi cho vui á 😤`,
   "!bye": (id) => `Biến`,
 
-  // ==== NGẮN GỌN ====
   "!ok": (id) => `Ok con dê 🐐`,
   "!ko": (id) => `Không là không, mày làm gì tao được <@${id}> 😤`,
   "!huh": (id) => `Huh? Như nào? 😐`,
 
-  // === Cà khịa member riêng ===
   "!phatzeno": (id) => `<@864072941834862632> là con lợn bel`,
   "!feru": (id) => `<@874186912078921768> là con lợn bel`,
   "!wang": (id) => `<@493326232088346624> sủa bậy bạ tao mute cho im giờ 😤🚫`,
@@ -79,7 +78,6 @@ function normalize(text) {
 
 // ====== LIST TỪ CẤM (HARD KEYWORD) ======
 const rawBannedWords = [
-  // === TIẾNG VIỆT CỰC MẠNH + TEENCODE ===
   "đm",
   "dm",
   "dmm",
@@ -216,22 +214,17 @@ const rawBannedWords = [
   "thang mat lon",
   "đầu buồi",
   "dau buoi",
-
   "cc",
   "cl",
   "cdmm",
   "cmm",
   "clmm",
   "clm",
-
-  // === PHÂN BIỆT CHỦNG TỘC / KỲ THỊ ===
   "nigger",
   "nigga",
   "niggas",
   "neger",
   "negro",
-
-  // === TIẾNG ANH CỰC MẠNH + BIẾN THỂ ===
   "motherfucker",
   "mthfckr",
   "mthfcker",
@@ -367,14 +360,8 @@ const processedBannedWords = rawBannedWords.map((raw) => {
   const norm = normalize(raw).trim();
   const compact = norm.replace(/\s+/g, "");
   const isPhrase = norm.includes(" ");
-  const isShortToken = !isPhrase && norm.length <= 3; // dm, cc, cl, dit,...
-  return {
-    raw,
-    norm,
-    compact,
-    isPhrase,
-    isShortToken,
-  };
+  const isShortToken = !isPhrase && norm.length <= 3;
+  return { raw, norm, compact, isPhrase, isShortToken };
 });
 
 function containsBannedWord(text) {
@@ -382,14 +369,12 @@ function containsBannedWord(text) {
   const normNoSpace = norm.replace(/\s+/g, "");
 
   for (const bw of processedBannedWords) {
-    // Cụm có dấu cách: "oc cho", "du ma", "dau buoi",...
     if (bw.isPhrase) {
       if (norm.includes(bw.norm)) return true;
       if (normNoSpace.includes(bw.compact)) return true;
       continue;
     }
 
-    // Từ ngắn: dm, cl, cc,... → match nguyên từ
     if (bw.isShortToken) {
       const pattern = `\\b${escapeRegex(bw.norm)}\\b`;
       const re = new RegExp(pattern, "i");
@@ -397,11 +382,9 @@ function containsBannedWord(text) {
       continue;
     }
 
-    // Từ dài 1 block: motherfucker, pussy, vagina,...
     if (norm.includes(bw.norm)) return true;
     if (normNoSpace.includes(bw.compact)) return true;
   }
-
   return false;
 }
 
@@ -414,8 +397,45 @@ const client = new Client({
   ],
 });
 
-client.once("ready", () => {
+// ====== AUTO DEPLOY SLASH COMMANDS (GUILD) ======
+async function deploySlashCommands() {
+  if (!APPLICATION_ID || !GUILD_ID) {
+    console.warn(
+      "⚠️ Thiếu APPLICATION_ID/CLIENT_ID hoặc GUILD_ID → không deploy slash command. (Bot vẫn chạy bình thường)"
+    );
+    return;
+  }
+
+  const commands = [
+    new SlashCommandBuilder()
+      .setName("blackjack")
+      .setDescription("Chơi blackjack")
+      .addIntegerOption((opt) =>
+        opt
+          .setName("money")
+          .setDescription("Số tiền đặt")
+          .setRequired(true)
+          .setMinValue(1)
+      )
+      .toJSON(),
+  ];
+
+  const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);
+
+  try {
+    console.log("⏳ Deploying slash commands to guild...");
+    await rest.put(Routes.applicationGuildCommands(APPLICATION_ID, GUILD_ID), {
+      body: commands,
+    });
+    console.log("✅ Slash commands deployed!");
+  } catch (err) {
+    console.error("❌ Deploy slash commands failed:", err);
+  }
+}
+
+client.once("ready", async () => {
   console.log(`🔥 Bot đã online: ${client.user.tag}`);
+  await deploySlashCommands(); // <-- tự register /blackjack money
 });
 
 // helper nếu cần sau này
@@ -425,8 +445,8 @@ function isModerator(member) {
 }
 
 // ====== QUẢN LÝ VI PHẠM & TIMEOUT ======
-const userViolations = new Map(); // userId -> { count, lastAt }
-const VIOLATION_WINDOW_MS = 60 * 60 * 1000; // 1 tiếng không chửi thì reset đếm
+const userViolations = new Map();
+const VIOLATION_WINDOW_MS = 60 * 60 * 1000;
 
 const PENALTY_STEPS = [
   { threshold: 5, durationMs: 3 * 60 * 1000 },
@@ -447,7 +467,6 @@ function computePenalty(count) {
   };
 }
 
-// Xử lý vi phạm
 async function handleViolation(message, options) {
   const {
     isHardKeyword = false,
@@ -460,7 +479,6 @@ async function handleViolation(message, options) {
   const userId = user.id;
   const isOwner = userId === OWNER_ID;
 
-  // 🌟 WHITELIST HOÀN TOÀN CHO OWNER: KHÔNG XOÁ, KHÔNG CẢNH BÁO, KHÔNG MUTE
   if (isOwner) {
     console.log(`👑 OWNER VIOLATION (${sourceTag}) – bỏ qua hết cho bố.`);
     return;
@@ -484,12 +502,9 @@ async function handleViolation(message, options) {
 
     count = record.count;
     penaltyInfo = computePenalty(count);
-
-    if (penaltyInfo.nextStep) {
-      remaining = penaltyInfo.nextStep.threshold - count;
-    } else {
-      remaining = 0;
-    }
+    remaining = penaltyInfo.nextStep
+      ? penaltyInfo.nextStep.threshold - count
+      : 0;
 
     console.log(
       `⚠️ HARD VIOLATION từ ${user.tag} (${sourceTag}) – count=${count}`
@@ -511,25 +526,21 @@ async function handleViolation(message, options) {
     }
   }
 
-  // Xoá tin nhắn gốc
   try {
     await message.delete();
   } catch (err) {
     console.error("Không xoá được tin nhắn vi phạm:", err);
   }
 
-  // Gửi cảnh báo (sống 10s)
   try {
     let content;
 
     if (isHardKeyword) {
-      // CHỈ CASE DÍNH KEYWORD MỚI NÓI "Ê..."
       content =
         `🚫 Ê, đi hơi xa rồi đó <@${userId}>.\n` +
         `> Lý do: ${reasonText}` +
         extraLine;
     } else {
-      // SOFT: chỉ hiện đúng baseReason (ví dụ "Kênh này chỉ để gọi nhạc...")
       content = baseReason;
     }
 
@@ -545,7 +556,6 @@ async function handleViolation(message, options) {
     console.error("Không gửi được cảnh báo:", err);
   }
 
-  // HARD keyword → timeout
   if (isHardKeyword && penaltyInfo.timeoutMs > 0) {
     const member = message.member;
 
@@ -565,7 +575,7 @@ async function handleViolation(message, options) {
       }
     } else {
       console.warn(
-        `⚠️ Không thể timeout ${user.tag} (có thể bot thiếu quyền hoặc user cao role hơn).`
+        `⚠️ Không thể timeout ${user.tag} (thiếu quyền hoặc user cao role hơn).`
       );
     }
   }
@@ -575,12 +585,9 @@ async function handleViolation(message, options) {
 client.on("messageCreate", async (message) => {
   try {
     const RYTHM_BOT_ID = "235088799074484224";
-
     if (!message.guild) return;
 
-    // Nếu là bot
     if (message.author.bot) {
-      // Trong kênh music-request: chỉ xoá bot KHÁC (không phải Rythm, không phải chính bot)
       if (message.channel.id === MUSIC_REQUEST_CHANNEL_ID) {
         if (
           message.author.id !== RYTHM_BOT_ID &&
@@ -596,9 +603,7 @@ client.on("messageCreate", async (message) => {
     const content = message.content.trim();
     if (!content) return;
 
-    // ==== LUẬT CHO CHANNEL 🎶︱music-request ====
     if (message.channel.id === MUSIC_REQUEST_CHANNEL_ID) {
-      // 1) Cấm chat thường → chỉ slash command
       if (!content.startsWith("/")) {
         await handleViolation(message, {
           isHardKeyword: false,
@@ -610,7 +615,6 @@ client.on("messageCreate", async (message) => {
         return;
       }
 
-      // 2) Chỉ cho phép lệnh của Rythm
       const allowedRythmCommands = [
         "/play",
         "/stop",
@@ -622,7 +626,6 @@ client.on("messageCreate", async (message) => {
       ];
 
       const firstWord = content.split(/\s+/)[0];
-
       if (!allowedRythmCommands.includes(firstWord)) {
         await handleViolation(message, {
           isHardKeyword: false,
@@ -634,7 +637,6 @@ client.on("messageCreate", async (message) => {
         return;
       }
 
-      // 3) Vẫn lọc chửi bậy trong kênh nhạc
       if (containsBannedWord(content)) {
         await handleViolation(message, {
           isHardKeyword: true,
@@ -648,9 +650,7 @@ client.on("messageCreate", async (message) => {
       return;
     }
 
-    // ====== LOGIC CHUNG CHO CÁC KÊNH KHÁC ======
-
-    // 0) Trigger "!" đơn giản
+    // Trigger "!"
     if (content.startsWith("!")) {
       const firstWord = content.split(/\s+/)[0].toLowerCase();
       const trigger = triggers[firstWord];
@@ -662,12 +662,11 @@ client.on("messageCreate", async (message) => {
             : String(trigger);
 
         await message.reply(replyText);
-        return; // đã xử lý trigger thì thôi
+        return;
       }
-      // nếu không có trong list triggers thì cho phép đi tiếp xuống dưới
     }
 
-    // 1) Slash command kiểu text
+    // Slash command kiểu text (không phải slash thật)
     if (content.startsWith("/")) {
       const firstWord = content.split(/\s+/)[0];
       if (!allowedCommands.includes(firstWord)) {
@@ -681,7 +680,7 @@ client.on("messageCreate", async (message) => {
       return;
     }
 
-    // 2) HARD keyword
+    // HARD keyword
     if (containsBannedWord(content)) {
       await handleViolation(message, {
         isHardKeyword: true,
@@ -692,13 +691,13 @@ client.on("messageCreate", async (message) => {
       return;
     }
 
-    // 3) Không nằm trong list → bỏ qua
     return;
   } catch (err) {
     console.error("Lỗi chung trong messageCreate:", err);
   }
 });
 
+// ====== SLASH COMMAND HANDLER ======
 client.on("interactionCreate", async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
