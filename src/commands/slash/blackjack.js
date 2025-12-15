@@ -17,7 +17,17 @@ const {
 } = require("../../features/economyRules");
 
 // Helper for Logging
-async function logGameEnd(client, guildId, userId, bet, result, pay, finalProfit, fee, balance) {
+async function logGameEnd(
+  client,
+  guildId,
+  userId,
+  bet,
+  result,
+  pay,
+  finalProfit,
+  fee,
+  balance
+) {
   const { logTransaction } = require("../../features/transactionLog");
   const { logBlackjack } = require("../../utils/discordLogger");
 
@@ -29,7 +39,7 @@ async function logGameEnd(client, guildId, userId, bet, result, pay, finalProfit
     amount: pay, // Payout amount
     fee: fee,
     reason: `Result: ${result}`,
-    meta: { bet, result, profit: finalProfit }
+    meta: { bet, result, profit: finalProfit },
   });
 
   // Discord Log
@@ -111,28 +121,9 @@ async function start(interaction) {
     // Apply Fee
     const profit = pay - bet;
     const finalProfit = applyWinFee(profit);
+    const fee = profit - finalProfit;
     pay = bet + finalProfit; // Total return
 
-    // Helper for Logging
-    async function logGameEnd(
-      client,
-      guildId,
-      userId,
-      bet,
-      result,
-      pay,
-      finalProfit,
-      balance
-    ) {
-      const { logTransaction } = require("../../features/transactionLog");
-      const { logBlackjack } = require("../../utils/discordLogger");
-
-      // DB Log
-      await logTransaction({
-        type: "BLACKJACK",
-        guildId,
-        userId,
-        amount: pay, // Payout amount
     try {
       balance = await addBalance(guildId, userId, pay, admin);
       await recordBlackjackRound(guildId, userId, state.result, state.bet, pay);
@@ -150,68 +141,6 @@ async function start(interaction) {
     } catch (e) {
       console.error("payout/stats error:", e);
     }
-    // ...
-    await recordBlackjackRound(
-      guildId,
-      userId,
-      g.state.result,
-      g.state.bet,
-      pay
-    );
-    await logGameEnd(
-      interaction.client,
-      guildId,
-      userId,
-      g.state.bet,
-      g.state.result,
-      pay,
-      finalProfit,
-      balance
-    );
-
-    games.delete(gameId);
-    // ...
-    await recordBlackjackRound(
-      guildId,
-      userId,
-      g.state.result,
-      g.state.bet,
-      pay
-    );
-    await logGameEnd(
-      interaction.client,
-      guildId,
-      userId,
-      g.state.bet,
-      g.state.result,
-      pay,
-      finalProfit,
-      balance
-    );
-
-    games.delete(gameId);
-    // ...
-    await recordBlackjackRound(
-      guildId,
-      userId,
-      g.state.result,
-      g.state.bet,
-      pay
-    );
-    await logGameEnd(
-      interaction.client,
-      guildId,
-      userId,
-      g.state.bet,
-      g.state.result,
-      pay,
-      finalProfit,
-      balance
-    );
-
-    games.delete(gameId);
-    // ... existing code ...
-    module.exports = { slashData, start, onButton };
 
     return interaction.editReply({
       embeds: [embed({ userId, state, balance, revealDealer: true })],
@@ -237,14 +166,6 @@ async function start(interaction) {
 async function onButton(interaction) {
   // Check Cooldown (Spam protection)
   const userId = interaction.user.id;
-  // Button interactions usually fast, allow retry every 1s? Or use game cooldown?
-  // User says "Spam slash / spam button -> từ chối".
-  // Let's use a short cooldown for buttons or just ignore if spamming.
-  // Using checkCooldown with a different key? Or just rely on Discord interaction limits.
-  // Let's not block buttons heavily unless requested, but user said "Spam button -> từ chối".
-  // Let's check a generic cooldown.
-  // We can skip specific button cooldown for now to avoid bad UX, or use very short.
-
   await interaction.deferUpdate();
 
   const [, gameId, act] = interaction.customId.split(":");
@@ -290,7 +211,17 @@ async function onButton(interaction) {
         g.state.bet,
         pay
       );
-      await logGameEnd(interaction.client, guildId, userId, g.state.bet, g.state.result, pay, finalProfit, fee, balance);
+      await logGameEnd(
+        interaction.client,
+        guildId,
+        userId,
+        g.state.bet,
+        g.state.result,
+        pay,
+        finalProfit,
+        fee,
+        balance
+      );
 
       games.delete(gameId);
       setCooldown(userId, "blackjack"); // Reset cooldown on end game
@@ -322,6 +253,7 @@ async function onButton(interaction) {
 
     const profit = pay - g.state.bet;
     const finalProfit = applyWinFee(profit);
+    const fee = profit - finalProfit;
     pay = g.state.bet + finalProfit;
 
     balance = await addBalance(guildId, userId, pay, admin);
@@ -332,6 +264,17 @@ async function onButton(interaction) {
       g.state.result,
       g.state.bet,
       pay
+    );
+    await logGameEnd(
+      interaction.client,
+      guildId,
+      userId,
+      g.state.bet,
+      g.state.result,
+      pay,
+      finalProfit,
+      fee,
+      balance
     );
 
     games.delete(gameId);
@@ -371,6 +314,7 @@ async function onButton(interaction) {
 
     const profit = pay - g.state.bet;
     const finalProfit = applyWinFee(profit);
+    const fee = profit - finalProfit;
     pay = g.state.bet + finalProfit;
 
     balance = await addBalance(guildId, userId, pay, admin);
@@ -381,6 +325,17 @@ async function onButton(interaction) {
       g.state.result,
       g.state.bet,
       pay
+    );
+    await logGameEnd(
+      interaction.client,
+      guildId,
+      userId,
+      g.state.bet,
+      g.state.result,
+      pay,
+      finalProfit,
+      fee,
+      balance
     );
 
     games.delete(gameId);
@@ -398,7 +353,5 @@ async function onButton(interaction) {
     ephemeral: true,
   });
 }
-
-// remove onInteractionCreate (moved to router)
 
 module.exports = { slashData, start, onButton };

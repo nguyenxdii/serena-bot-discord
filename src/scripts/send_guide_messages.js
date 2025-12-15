@@ -1,5 +1,7 @@
 // src/scripts/send_guide_messages.js
 const fs = require("fs");
+const path = require("path");
+
 function log(msg) {
   console.log(msg);
   fs.appendFileSync("debug_guide.log", msg + "\n");
@@ -7,7 +9,12 @@ function log(msg) {
 
 require("dotenv").config();
 log("🚀 Script started...");
-const { Client, GatewayIntentBits, EmbedBuilder } = require("discord.js");
+const {
+  Client,
+  GatewayIntentBits,
+  EmbedBuilder,
+  AttachmentBuilder,
+} = require("discord.js");
 const { DISCORD_TOKEN } = require("../config/env");
 
 const TARGET_CHANNEL_ID = "1450073214620405903"; // 🎲｜luật-vui-chơi
@@ -41,14 +48,26 @@ client.once("ready", async () => {
 
     console.log(`✅ Found channel: ${channel.name}`);
 
-    // --- MESSAGE 1: BẢN ĐỒ KÊNH ---
+    // --- SETUP ASSETS ---
+    const banner1Path = path.join(__dirname, "../assets/banner 1.png");
+    const banner2Path = path.join(__dirname, "../assets/banner 2.png");
+
+    const banner1File = new AttachmentBuilder(banner1Path, {
+      name: "banner1.png",
+    });
+    const banner2File = new AttachmentBuilder(banner2Path, {
+      name: "banner2.png",
+    });
+
+    // --- MESSAGE 1: BẢN ĐỒ KÊNH + BANNER 2 ---
     const embedMap = new EmbedBuilder()
       .setTitle('🗺️ BẢN ĐỒ "TỔ DÂN PHỐ" GIẢI TRÍ')
       .setDescription(
         "Chào mừng cư dân đến với Khu Vui Chơi! Dưới đây là hướng dẫn các khu vực:"
       )
       .setColor("Gold")
-      .setThumbnail("https://cdn-icons-png.flaticon.com/512/1698/1698535.png") // Icon bản đồ/chỉ dẫn
+      .setThumbnail("https://cdn-icons-png.flaticon.com/512/1698/1698535.png") // Icon bản đồ
+      .setImage("attachment://banner2.png") // Gắn Banner 2
       .addFields(
         {
           name: "📢 Thông Tin & Sự Kiện",
@@ -77,13 +96,14 @@ client.once("ready", async () => {
       )
       .setFooter({ text: "Chúc các bạn chơi vui vẻ và văn minh!" });
 
-    // --- MESSAGE 2: HƯỚNG DẪN LỆNH ---
+    // --- MESSAGE 2: HƯỚNG DẪN LỆNH + BANNER 1 ---
     const embedCmd = new EmbedBuilder()
       .setTitle("📜 LUẬT CHƠI & CÂU LỆNH CƠ BẢN")
       .setColor("Blue")
       .setDescription(
         "Để đảm bảo trải nghiệm tốt nhất, vui lòng tuân thủ quy định và sử dụng đúng lệnh."
       )
+      .setImage("attachment://banner1.png") // Gắn Banner 1
       .addFields(
         {
           name: "🚫 Quy Định",
@@ -91,6 +111,15 @@ client.once("ready", async () => {
             "• **Không spam** lệnh quá nhanh gây lag bot.\n" +
             "• **Không cay cú**, chửi bới khi thua cược.\n" +
             "• Vui lòng **nhắn đúng kênh** quy định (Bot sẽ nhắc nhở 15s nếu sai).",
+          inline: false,
+        },
+        {
+          name: "📅 Điểm Danh & Tài Chính",
+          value:
+            "`/daily` : Điểm danh hàng ngày (Có streak & bonus tuần)\n" +
+            "`/wallet` : Xem túi tiền\n" +
+            "`/tip user:<@user> amount:<số tiền> note:<lời nhắn>` : Lì xì cho bạn bè (Free fee)\n" +
+            "`/pay user:<@user> amount:<số tiền>` : Chuyển khoản giao dịch (Phí 5%)",
           inline: false,
         },
         {
@@ -108,23 +137,21 @@ client.once("ready", async () => {
             "`/bacay-help` : Xem luật chơi chi tiết\n" +
             "`/bacay-top` : Xem bảng xếp hạng đại gia",
           inline: false,
-        },
-        {
-          name: "💰 Tài Chính",
-          value: "`/wallet` : Xem số dư túi tiền của bạn",
-          inline: false,
         }
-      )
-      .setImage(
-        "https://media.discordapp.net/attachments/1008571069484335104/1141381373539958864/casino-banner.png?width=960&height=300"
-      ); // Ví dụ ảnh banner casino đẹp
+      );
 
-    console.log("📨 Sending Message 1...");
-    const msg1 = await channel.send({ embeds: [embedMap] });
+    console.log("📨 Sending Message 1 (Map + Banner 2)...");
+    const msg1 = await channel.send({
+      embeds: [embedMap],
+      files: [banner2File],
+    });
     await msg1.pin();
 
-    console.log("📨 Sending Message 2...");
-    const msg2 = await channel.send({ embeds: [embedCmd] });
+    console.log("📨 Sending Message 2 (Rules + Banner 1)...");
+    const msg2 = await channel.send({
+      embeds: [embedCmd],
+      files: [banner1File],
+    });
     await msg2.pin();
 
     console.log("✅ Done! Exit in 3s...");

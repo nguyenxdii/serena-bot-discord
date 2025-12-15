@@ -6,6 +6,8 @@ const {
 } = require("discord.js");
 const { claimDaily } = require("../../features/wallet");
 const { fmt } = require("../../games/bacay/ui"); // Reusing fmt helper
+const { logTransaction } = require("../../features/transactionLog");
+const { logDaily } = require("../../utils/discordLogger");
 
 const slashData = new SlashCommandBuilder()
   .setName("daily")
@@ -22,8 +24,8 @@ async function run(interaction) {
 
   const result = await claimDaily(guildId, userId, isAdmin);
 
+  // 1. Fail: Cooldown
   if (result.status === "fail") {
-    // Cooldown
     const nextTime = result.nextTime;
     const timestamp = Math.floor(nextTime.getTime() / 1000);
     return interaction.editReply({
@@ -31,10 +33,38 @@ async function run(interaction) {
     });
   }
 
+  // 2. Fail: Error
   if (result.status === "fail_race" || result.status === "error") {
     return interaction.editReply("❌ Có lỗi xảy ra. Vui lòng thử lại!");
   }
 
+  // 3. Success
+  const { reward, streakBonus, weeklyBonus, total, streak, weekly, balance } =
+    result;
+
+  // Log DB
+  await logTransaction({
+    type: "DAILY",
+    guildId,
+    userId,
+    amount: total,
+    reason: `Streak: ${streak}, Weekly: ${weekly}`,
+    meta: result,
+  });
+
+  // Log Discord
+  logDaily(interaction.client, userId, reward, streak, total);
+
+  const embed = new EmbedBuilder()
+    .setTitle("📅 ĐIỂM DANH HÀNG NGÀY")
+    .setColor("Green")
+    .setDescription(`Chúc mừng <@${userId}> đã điểm danh thành công!`)
+    .addFields(
+      {
+        name: "💰 Phần thưởng",
+        value: `+**${fmt(total)}** coin`,
+        inline: true,
+      },
       { name: "🔥 Streak", value: `**${streak}** ngày`, inline: true },
       { name: "🏦 Ví của bạn", value: `**${fmt(balance)}** coin`, inline: true }
     );
@@ -53,9 +83,7 @@ async function run(interaction) {
     });
   }
 
-  // Weekly Progress bar?
-  // User: "weeklyCounter"
-  // Example: 🟦🟦🟦⬜⬜⬜⬜ (3/7)
+  // Weekly Progress bar
   const progress = "🟦".repeat(weekly) + "⬜".repeat(7 - weekly);
   embed.addFields({
     name: "📅 Tiến độ tuần",
