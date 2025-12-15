@@ -22,19 +22,14 @@ async function checkChannel(interaction) {
   // Warning
   const channelList = ALLOWED_CHANNELS.map((id) => `<#${id}>`).join(", ");
 
-  let msg;
   try {
-    const content = `⚠️ **Vui lòng qua đúng kênh để chơi game:**\n👉 ${channelList}\n_(Tin nhắn tự xóa sau 15 giây)_`;
+    const content = `⚠️ **Vui lòng qua đúng kênh để chơi game:**\n👉 ${channelList}`;
 
     if (interaction.deferred || interaction.replied) {
-      msg = await interaction.followUp({ content, ephemeral: true });
+      await interaction.followUp({ content, ephemeral: true });
     } else {
-      msg = await interaction.reply({ content, fetchReply: true });
+      await interaction.reply({ content, ephemeral: true });
     }
-
-    setTimeout(() => {
-      if (msg && msg.delete) msg.delete().catch(() => {});
-    }, 15000);
   } catch (e) {}
 
   return false;

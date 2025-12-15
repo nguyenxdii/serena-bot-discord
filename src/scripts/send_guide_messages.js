@@ -1,5 +1,12 @@
 // src/scripts/send_guide_messages.js
+const fs = require("fs");
+function log(msg) {
+  console.log(msg);
+  fs.appendFileSync("debug_guide.log", msg + "\n");
+}
+
 require("dotenv").config();
+log("🚀 Script started...");
 const { Client, GatewayIntentBits, EmbedBuilder } = require("discord.js");
 const { DISCORD_TOKEN } = require("../config/env");
 
