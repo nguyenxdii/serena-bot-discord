@@ -82,9 +82,10 @@ async function run(interaction) {
   }
 
   if (bet > balance) {
+    return interaction.reply({
       content: `❌ Không đủ tiền! Số dư: **${fmt(balance)}**`,
       ephemeral: true
-    );
+    });
   }
 
   // Deduct Bet

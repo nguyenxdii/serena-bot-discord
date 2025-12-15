@@ -69,7 +69,6 @@ const slashData = new SlashCommandBuilder()
 async function start(interaction) {
   // Defer removed from here
 
-
   const userId = interaction.user.id;
   const guildId = interaction.guildId;
   const admin = isAdmin(interaction.member);
@@ -77,12 +76,12 @@ async function start(interaction) {
   // 1. Check Cooldown
   const cd = checkCooldown(userId, "blackjack");
   if (cd) {
-    return interaction.editReply(
+    return interaction.reply({
       content: `⏳ Bạn thao tác quá nhanh! Vui lòng chờ **${(cd / 1000).toFixed(
         1
       )}s** nữa.`,
-      ephemeral: true
-    );
+      ephemeral: true,
+    });
   }
 
   const bet = interaction.options.getInteger("bet", true);
@@ -92,7 +91,10 @@ async function start(interaction) {
   try {
     balance = await getBalance(guildId, userId, admin);
   } catch (e) {
-    return interaction.reply({ content: "❌ Lỗi ví tiền. Thử lại sau.", ephemeral: true });
+    return interaction.reply({
+      content: "❌ Lỗi ví tiền. Thử lại sau.",
+      ephemeral: true,
+    });
   }
 
   const errorMsg = validateBet(balance, bet);
@@ -106,7 +108,7 @@ async function start(interaction) {
   } catch (e) {
     return interaction.reply({
       content: "❌ Không trừ được tiền cược (DB chậm/lỗi). Thử lại nhé.",
-      ephemeral: true
+      ephemeral: true,
     });
   }
 
