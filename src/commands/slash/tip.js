@@ -110,34 +110,42 @@ async function run(interaction) {
     content:
       `🛑 **XÁC NHẬN TIP**\n` +
       `Bạn có chắc muốn tặng **${amount}** coin cho <@${targetUser.id}>?\n` +
-      `Lý do: _${note}_`,
+      `Nội dung: _${note}_`,
     components: [row],
   });
 
   // Collector
   const filter = (i) => i.user.id === sender.id;
+  let confirmation;
   try {
-    const confirmation = await confirmMsg.awaitMessageComponent({
+    confirmation = await confirmMsg.awaitMessageComponent({
       filter,
       componentType: ComponentType.Button,
-      time: 30_000,
+      time: 120_000, // 2 minutes
     });
+  } catch (e) {
+    // Timeout Error
+    return interaction.editReply({
+      content: "⏳ Đã hết thời gian xác nhận (2 phút).",
+      components: [],
+    });
+  }
 
-    if (confirmation.customId === "cancel_tip") {
-      await confirmation.update({
-        content: "❌ Đã hủy giao dịch.",
-        components: [],
-      });
-      return;
-    }
+  // Handle Cancel
+  if (confirmation.customId === "cancel_tip") {
+    await confirmation.update({
+      content: "❌ Đã hủy giao dịch.",
+      components: [],
+    });
+    return;
+  }
 
-    if (confirmation.customId === "confirm_tip") {
+  // Handle Confirm
+  if (confirmation.customId === "confirm_tip") {
+    try {
       await confirmation.deferUpdate(); // Acknowledge button
 
       // 4. PROCESS
-      // Re-check balance atomic? processTransfer handles balance check again internally usually?
-      // wallet.js processTransfer does checking but we should trust initial check + atomicity.
-
       const statsUpdate = {
         $inc: { "transferStats.tipCountToday": 1 },
         $set: {
@@ -202,7 +210,7 @@ async function run(interaction) {
         `🎁 **TIP THÀNH CÔNG**\n` +
         `Bạn đã tip cho: <@${targetUser.id}>\n` +
         `Số coin: **${amount}**\n` +
-        `Ghi chú: ${note}\n` +
+        `Nội dung: ${note}\n` +
         `Thời gian: ${timeStr}`;
       sendDM(sender, dmSender);
 
@@ -210,16 +218,16 @@ async function run(interaction) {
         `🎁 **BẠN NHẬN ĐƯỢC TIP**\n\n` +
         `Người gửi: <@${sender.id}>\n` +
         `Số coin nhận: **${amount}**\n` +
-        `Ghi chú: ${note}\n` +
+        `Nội dung: ${note}\n` +
         `Thời gian: ${timeStr}`;
       sendDM(targetUser, dmReceiver);
+    } catch (err) {
+      console.error("Tip Error:", err);
+      return interaction.editReply({
+        content: "❌ Có lỗi hệ thống xảy ra trong quá trình xử lý.",
+        components: [],
+      });
     }
-  } catch (e) {
-    // Timeout
-    await interaction.editReply({
-      content: "⏳ Đã hết thời gian xác nhận.",
-      components: [],
-    });
   }
 }
 

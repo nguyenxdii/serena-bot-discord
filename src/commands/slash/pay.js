@@ -132,22 +132,33 @@ async function run(interaction) {
 
   // Collector
   const filter = (i) => i.user.id === sender.id;
+  let confirmation;
   try {
-    const confirmation = await confirmMsg.awaitMessageComponent({
+    confirmation = await confirmMsg.awaitMessageComponent({
       filter,
       componentType: ComponentType.Button,
-      time: 30_000,
+      time: 120_000, // 2 minutes
     });
+  } catch (e) {
+    // Timeout
+    return interaction.editReply({
+      content: "⏳ Đã hết thời gian xác nhận (2 phút).",
+      components: [],
+    });
+  }
 
-    if (confirmation.customId === "cancel_pay") {
-      await confirmation.update({
-        content: "❌ Đã hủy giao dịch.",
-        components: [],
-      });
-      return;
-    }
+  // Cancel
+  if (confirmation.customId === "cancel_pay") {
+    await confirmation.update({
+      content: "❌ Đã hủy giao dịch.",
+      components: [],
+    });
+    return;
+  }
 
-    if (confirmation.customId === "confirm_pay") {
+  // Confirm
+  if (confirmation.customId === "confirm_pay") {
+    try {
       await confirmation.deferUpdate();
 
       // 4. PROCESS
@@ -169,14 +180,14 @@ async function run(interaction) {
         guildId,
         sender.id,
         targetUser.id,
-        amount,
-        received,
+        amount, // Deduct full amount
+        received, // Add partial amount
         statsUpdate
       );
 
       if (!result.success) {
         return interaction.editReply({
-          content: "❌ Giao dịch thất bại (Lỗi ví hoặc số dư).",
+          content: "❌ Giao dịch thất bại (Lỗi ví hoặc số dư thay đổi).",
           components: [],
         });
       }
@@ -215,7 +226,7 @@ async function run(interaction) {
         `Số coin gửi: **${amount}**\n` +
         `Phí giao dịch (5%): **${fee}**\n` +
         `Người nhận nhận: **${received}**\n` +
-        `Ghi chú: ${note}\n` +
+        `Nội dung: ${note}\n` +
         `Thời gian: ${timeStr}`;
       sendDM(sender, dmSender);
 
@@ -224,15 +235,16 @@ async function run(interaction) {
         `Người gửi: <@${sender.id}>\n` +
         `Số coin nhận: **${received}**\n` +
         `Phí đã trừ: **${fee}**\n` +
-        `Ghi chú: ${note}\n` +
+        `Nội dung: ${note}\n` +
         `Thời gian: ${timeStr}`;
       sendDM(targetUser, dmReceiver);
+    } catch (err) {
+      console.error("Pay Error:", err);
+      return interaction.editReply({
+        content: "❌ Có lỗi hệ thống xảy ra trong quá trình xử lý.",
+        components: [],
+      });
     }
-  } catch (e) {
-    await interaction.editReply({
-      content: "⏳ Đã hủy (Hết thời gian xác nhận).",
-      components: [],
-    });
   }
 }
 
