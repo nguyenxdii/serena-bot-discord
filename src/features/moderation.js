@@ -139,12 +139,11 @@ async function handleViolation(message, options) {
       ? `🚫 Ê, đi hơi xa rồi đó <@${userId}>.\n> Lý do: ${baseReason}${extra}`
       : baseReason;
 
-    const warn = await channel.send({
-      content,
-      allowedMentions: isHardKeyword ? { users: [userId] } : undefined,
-    });
-
-    setTimeout(() => warn.delete().catch(() => {}), WARNING_LIFETIME_MS);
+    await message.author
+      .send({
+        content,
+      })
+      .catch(() => {});
   } catch {}
 
   if (isHardKeyword && penaltyInfo.timeoutMs > 0) {

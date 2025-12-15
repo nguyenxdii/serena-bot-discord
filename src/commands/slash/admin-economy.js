@@ -19,7 +19,7 @@ async function run(interaction) {
     });
   }
 
-  await interaction.deferReply();
+  await interaction.deferReply({ ephemeral: true });
 
   const db = getDb();
   if (!db) return interaction.editReply("❌ DB Error.");
@@ -27,9 +27,12 @@ async function run(interaction) {
   const usersC = db.collection("users");
   const txC = db.collection("transactions");
 
+  const EXCLUDE_IDS = ["875358286487097395"]; // Bot Owner
+
   // 1. User Stats
   const userStats = await usersC
     .aggregate([
+      { $match: { userId: { $nin: EXCLUDE_IDS } } },
       {
         $group: {
           _id: null,
@@ -52,6 +55,7 @@ async function run(interaction) {
 
   const txStats = await txC
     .aggregate([
+      { $match: { userId: { $nin: EXCLUDE_IDS } } },
       {
         $group: {
           _id: "$type",

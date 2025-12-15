@@ -42,7 +42,7 @@ const removeSlash = new SlashCommandBuilder()
 async function runAdd(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator))
     return;
-  await interaction.deferReply();
+  await interaction.deferReply({ ephemeral: true });
 
   const user = interaction.options.getUser("user");
   const amount = interaction.options.getInteger("amount");
@@ -70,7 +70,7 @@ async function runAdd(interaction) {
 async function runRemove(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator))
     return;
-  await interaction.deferReply();
+  await interaction.deferReply({ ephemeral: true });
 
   const user = interaction.options.getUser("user");
   const amount = interaction.options.getInteger("amount");

@@ -1,8 +1,14 @@
-const { SlashCommandBuilder } = require("discord.js");
+const {
+  SlashCommandBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ComponentType,
+} = require("discord.js");
 const { getUserData, processTransfer } = require("../../features/wallet");
 const { logTransaction } = require("../../features/transactionLog");
 const { sendDM } = require("../../utils/dmUser");
-const { checkCooldown, setCooldown } = require("../../features/economyRules"); // Need separate cooldown key
+const { checkCooldown, setCooldown } = require("../../features/economyRules");
 
 // Config
 const TIP_MIN = 50;
@@ -31,18 +37,23 @@ const slashData = new SlashCommandBuilder()
       .setMaxValue(TIP_MAX)
   )
   .addStringOption((opt) =>
-    opt.setName("note").setDescription("Lời nhắn").setMaxLength(100)
+    opt
+      .setName("note")
+      .setDescription("Lời nhắn")
+      .setMaxLength(100)
+      .setRequired(true)
   );
 
 async function run(interaction) {
-  await interaction.deferReply({ ephemeral: false });
+  // 1. Initial Private Defer
+  await interaction.deferReply({ ephemeral: true });
 
   const sender = interaction.user;
   const targetUser = interaction.options.getUser("user");
   const amount = interaction.options.getInteger("amount");
-  const note = interaction.options.getString("note") || "Không có";
+  const note = interaction.options.getString("note");
 
-  // 1. Validate User
+  // 2. Validations
   if (sender.id === targetUser.id) {
     return interaction.editReply("❌ Không thể tip cho chính mình.");
   }
@@ -50,20 +61,15 @@ async function run(interaction) {
     return interaction.editReply("❌ Không thể tip cho Bot.");
   }
 
-  // 2. Validate Cooldown
-  // Use EconomyRules checkCooldown logic, or custom?
-  // economyRules uses memory map. Good.
-  // We need to implement limits first.
-  // Let's use memory cooldown for strictly time-based.
-  const { cooldowns } = require("../../features/economyRules"); // Actually checkCooldown is exported
-  // checkCooldown(userId, key)
-  // But wait, economyRules cooldown is memory based.
-  // Let's check importing checkCooldown.
+  // Cooldown Memory Check
+  const cd = checkCooldown(sender.id, COOLDOWN_KEY);
+  if (cd) {
+    return interaction.editReply(
+      `⏳ Chờ **${Math.ceil(cd / 1000 / 60)} phút** để Tip tiếp.`
+    );
+  }
 
-  // NOTE: economyRules.js exports checkCooldown which checks GLOBAL memory.
-  // We can stick to that.
-
-  // 3. Check Limits (DB based)
+  // Limits Check (DB)
   const guildId = interaction.guildId;
   const senderData = await getUserData(guildId, sender.id);
 
@@ -73,13 +79,12 @@ async function run(interaction) {
     );
   }
 
-  // Daily Limit Check
   const todayKey = getDayKey();
   let tipCount = senderData.transferStats?.tipCountToday || 0;
   const storedKey = senderData.transferStats?.payDayKey;
 
   if (storedKey !== todayKey) {
-    tipCount = 0; // Reset logic in memory, applied in update
+    tipCount = 0;
   }
 
   if (tipCount >= TIP_LIMIT_DAY) {
@@ -88,88 +93,134 @@ async function run(interaction) {
     );
   }
 
-  // 4. Time Cooldown (Memory)
-  const {
-    checkCooldown: chk,
-    setCooldown: setCd,
-  } = require("../../features/economyRules");
-  const cd = chk(sender.id, COOLDOWN_KEY);
-  if (cd) {
-    return interaction.editReply(
-      `⏳ Chờ **${Math.ceil(cd / 1000 / 60)} phút** để Tip tiếp.`
-    );
-  }
+  // 3. CONFIRMATION
+  const confirmBtn = new ButtonBuilder()
+    .setCustomId("confirm_tip")
+    .setLabel("Xác nhận")
+    .setStyle(ButtonStyle.Success);
 
-  // 5. Process Transfer
-  // Stats Update: Set dayKey, inc tipCount
-  const statsUpdate = {
-    $inc: { "transferStats.tipCountToday": 1 },
-    $set: {
-      "transferStats.payDayKey": todayKey,
-      "transferStats.tipLastAt": new Date(),
-    },
-  };
+  const cancelBtn = new ButtonBuilder()
+    .setCustomId("cancel_tip")
+    .setLabel("Hủy")
+    .setStyle(ButtonStyle.Secondary);
 
-  // Reset daily counters if new day
-  if (storedKey !== todayKey) {
-    // If we want to strictly reset payOutToday too, we strictly should set checks.
-    // MongoDB $set will overwrite.
-    statsUpdate.$set["transferStats.tipCountToday"] = 1; // Start at 1
-    statsUpdate.$set["transferStats.payOutToday"] = 0; // Reset pay too?
-    delete statsUpdate.$inc; // Remove inc if resetting
-  } else {
-    // Same day, just inc
-  }
+  const row = new ActionRowBuilder().addComponents(confirmBtn, cancelBtn);
 
-  const result = await processTransfer(
-    guildId,
-    sender.id,
-    targetUser.id,
-    amount,
-    amount, // No Fee for tip
-    statsUpdate
-  );
-
-  if (!result.success) {
-    return interaction.editReply("❌ Giao dịch thất bại (Lỗi ví hoặc số dư).");
-  }
-
-  setCd(sender.id, COOLDOWN_KEY, COOLDOWN_TIME);
-  logTransaction({
-    type: "TIP",
-    fromUserId: sender.id,
-    toUserId: targetUser.id,
-    amount,
-    fee: 0,
-    received: amount,
-    note,
+  const confirmMsg = await interaction.editReply({
+    content:
+      `🛑 **XÁC NHẬN TIP**\n` +
+      `Bạn có chắc muốn tặng **${amount}** coin cho <@${targetUser.id}>?\n` +
+      `Lý do: _${note}_`,
+    components: [row],
   });
 
-  // 6. Notify
-  await interaction.editReply(
-    `✅ **TIP THÀNH CÔNG!**\nBạn đã gửi **${amount}** coin cho ${targetUser}.`
-  );
+  // Collector
+  const filter = (i) => i.user.id === sender.id;
+  try {
+    const confirmation = await confirmMsg.awaitMessageComponent({
+      filter,
+      componentType: ComponentType.Button,
+      time: 30_000,
+    });
 
-  // 7. DM Sender
-  const timeStr = new Date().toLocaleString("vi-VN");
-  const dmSender =
-    `🎁 **TIP THÀNH CÔNG**\n` +
-    `Bạn đã tip cho: <@${targetUser.id}>\n` +
-    `Số coin: **${amount}**\n` +
-    `Ghi chú: ${note}\n` +
-    `Thời gian: ${timeStr}`;
+    if (confirmation.customId === "cancel_tip") {
+      await confirmation.update({
+        content: "❌ Đã hủy giao dịch.",
+        components: [],
+      });
+      return;
+    }
 
-  sendDM(sender, dmSender);
+    if (confirmation.customId === "confirm_tip") {
+      await confirmation.deferUpdate(); // Acknowledge button
 
-  // 8. DM Receiver
-  const dmReceiver =
-    `🎁 **BẠN NHẬN ĐƯỢC TIP**\n\n` +
-    `Người gửi: <@${sender.id}>\n` +
-    `Số coin nhận: **${amount}**\n` +
-    `Ghi chú: ${note}\n` +
-    `Thời gian: ${timeStr}`;
+      // 4. PROCESS
+      // Re-check balance atomic? processTransfer handles balance check again internally usually?
+      // wallet.js processTransfer does checking but we should trust initial check + atomicity.
 
-  sendDM(targetUser, dmReceiver);
+      const statsUpdate = {
+        $inc: { "transferStats.tipCountToday": 1 },
+        $set: {
+          "transferStats.payDayKey": todayKey,
+          "transferStats.tipLastAt": new Date(),
+        },
+      };
+
+      if (storedKey !== todayKey) {
+        statsUpdate.$set["transferStats.tipCountToday"] = 1;
+        statsUpdate.$set["transferStats.payOutToday"] = 0;
+        delete statsUpdate.$inc;
+      }
+
+      const result = await processTransfer(
+        guildId,
+        sender.id,
+        targetUser.id,
+        amount,
+        amount, // No Fee
+        statsUpdate
+      );
+
+      if (!result.success) {
+        return interaction.editReply({
+          content: "❌ Giao dịch thất bại (Lỗi ví hoặc số dư thay đổi).",
+          components: [],
+        });
+      }
+
+      setCd(sender.id, COOLDOWN_KEY, COOLDOWN_TIME);
+      logTransaction({
+        type: "TIP",
+        fromUserId: sender.id,
+        toUserId: targetUser.id,
+        amount,
+        fee: 0,
+        received: amount,
+        note,
+      });
+
+      // 5. Notify & Private Update
+      const timeStr = new Date().toLocaleString("vi-VN");
+
+      // Update Private Msg
+      await interaction.editReply({
+        content: `✅ Đã tip **${amount}** coin cho <@${targetUser.id}>.`,
+        components: [],
+      });
+
+      // Send Public Msg
+      if (interaction.channel) {
+        await interaction.channel
+          .send({
+            content: `🎁 **TIP!** <@${sender.id}> đã tặng **${amount}** coin cho <@${targetUser.id}>.\n> 💌: ${note}`,
+          })
+          .catch(() => {});
+      }
+
+      // 6. DMs
+      const dmSender =
+        `🎁 **TIP THÀNH CÔNG**\n` +
+        `Bạn đã tip cho: <@${targetUser.id}>\n` +
+        `Số coin: **${amount}**\n` +
+        `Ghi chú: ${note}\n` +
+        `Thời gian: ${timeStr}`;
+      sendDM(sender, dmSender);
+
+      const dmReceiver =
+        `🎁 **BẠN NHẬN ĐƯỢC TIP**\n\n` +
+        `Người gửi: <@${sender.id}>\n` +
+        `Số coin nhận: **${amount}**\n` +
+        `Ghi chú: ${note}\n` +
+        `Thời gian: ${timeStr}`;
+      sendDM(targetUser, dmReceiver);
+    }
+  } catch (e) {
+    // Timeout
+    await interaction.editReply({
+      content: "⏳ Đã hết thời gian xác nhận.",
+      components: [],
+    });
+  }
 }
 
 module.exports = { slashData, run };

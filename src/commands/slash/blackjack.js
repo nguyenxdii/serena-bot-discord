@@ -67,7 +67,8 @@ const slashData = new SlashCommandBuilder()
   );
 
 async function start(interaction) {
-  await interaction.deferReply();
+  // Defer removed from here
+
 
   const userId = interaction.user.id;
   const guildId = interaction.guildId;
@@ -77,9 +78,10 @@ async function start(interaction) {
   const cd = checkCooldown(userId, "blackjack");
   if (cd) {
     return interaction.editReply(
-      `⏳ Bạn thao tác quá nhanh! Vui lòng chờ **${(cd / 1000).toFixed(
+      content: `⏳ Bạn thao tác quá nhanh! Vui lòng chờ **${(cd / 1000).toFixed(
         1
-      )}s** nữa.`
+      )}s** nữa.`,
+      ephemeral: true
     );
   }
 
@@ -90,22 +92,26 @@ async function start(interaction) {
   try {
     balance = await getBalance(guildId, userId, admin);
   } catch (e) {
-    return interaction.editReply("❌ Lỗi ví tiền. Thử lại sau.");
+    return interaction.reply({ content: "❌ Lỗi ví tiền. Thử lại sau.", ephemeral: true });
   }
 
   const errorMsg = validateBet(balance, bet);
   if (errorMsg) {
-    return interaction.editReply(errorMsg);
+    return interaction.reply({ content: errorMsg, ephemeral: true });
   }
 
   // 3. Deduct Bet
   try {
     balance = await addBalance(guildId, userId, -bet, admin);
   } catch (e) {
-    return interaction.editReply(
-      "❌ Không trừ được tiền cược (DB chậm/lỗi). Thử lại nhé."
-    );
+    return interaction.reply({
+      content: "❌ Không trừ được tiền cược (DB chậm/lỗi). Thử lại nhé.",
+      ephemeral: true
+    });
   }
+
+  // Validated & Paid -> Now make it Public
+  await interaction.deferReply();
 
   // Set cooldown start
   setCooldown(userId, "blackjack");

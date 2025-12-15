@@ -22,7 +22,7 @@ async function run(interaction) {
     });
   }
 
-  await interaction.deferReply();
+  await interaction.deferReply({ ephemeral: true });
   const target = interaction.options.getUser("user");
   const guildId = interaction.guildId;
 
