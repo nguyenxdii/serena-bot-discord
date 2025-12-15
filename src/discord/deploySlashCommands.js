@@ -5,6 +5,7 @@ const { DISCORD_TOKEN, APPLICATION_ID, GUILD_ID } = require("../config/env");
 const { slashData: blackjackSlash } = require("../commands/slash/blackjack");
 const { slashData: walletSlash } = require("../commands/slash/wallet");
 const { slashData: dailySlash } = require("../commands/slash/daily");
+const { slashData: tipSlash } = require("../commands/slash/tip");
 const { slashData: paySlash } = require("../commands/slash/pay");
 const { slashData: adminEcoSlash } = require("../commands/slash/admin-economy");
 const { slashData: adminUserSlash } = require("../commands/slash/admin-user");
