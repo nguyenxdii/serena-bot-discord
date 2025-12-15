@@ -1,41 +1,87 @@
 // src/features/wallet.js
 const { getDb } = require("../db/mongo");
 
-async function getBalance(guildId, userId) {
+const DEFAULT_USER_COINS = 1000;
+const ADMIN_TEST_COINS = 999999;
+
+// fallback memory nếu chưa có Mongo
+const mem = new Map(); // key = guildId:userId -> balance
+
+function col() {
   const db = getDb();
-  const col = db.collection("wallets");
-
-  const doc = await col.findOne({ guildId, userId });
-
-  // nếu chưa có ví → mặc định 1.000.000
-  return doc?.balance ?? 1_000_000;
+  if (!db) return null;
+  return db.collection("users");
 }
 
-async function addBalance(guildId, userId, amount) {
-  const db = getDb();
-  const col = db.collection("wallets");
+function keyOf(guildId, userId) {
+  return `${guildId}:${userId}`;
+}
 
-  const res = await col.findOneAndUpdate(
+async function ensureUser(guildId, userId, isAdmin) {
+  const c = col();
+  const key = keyOf(guildId, userId);
+
+  if (!c) {
+    if (!mem.has(key))
+      mem.set(key, isAdmin ? ADMIN_TEST_COINS : DEFAULT_USER_COINS);
+    return { guildId, userId, balance: mem.get(key), _memory: true };
+  }
+
+  const initial = isAdmin ? ADMIN_TEST_COINS : DEFAULT_USER_COINS;
+
+  await c.updateOne(
     { guildId, userId },
     {
-      $inc: { balance: amount }, // ✅ CHỈ DÙNG $inc
       $setOnInsert: {
         guildId,
         userId,
-        balance: 1_000_000, // số dư ban đầu
+        balance: initial,
         createdAt: new Date(),
       },
+      $set: { updatedAt: new Date() },
     },
-    {
-      upsert: true,
-      returnDocument: "after",
-    }
+    { upsert: true }
   );
 
+  return c.findOne({ guildId, userId });
+}
+
+async function getBalance(guildId, userId, isAdmin) {
+  const u = await ensureUser(guildId, userId, isAdmin);
+  return u.balance;
+}
+
+/**
+ * addBalance: tăng/giảm coin an toàn, không conflict update operators
+ * - Nếu user chưa tồn tại: tạo user balance = initial trước, rồi $inc delta
+ *   (2 bước nhưng cực ổn định, không bị "conflicting update operators")
+ */
+async function addBalance(guildId, userId, delta, isAdmin) {
+  const c = col();
+  const key = keyOf(guildId, userId);
+
+  if (!c) {
+    await ensureUser(guildId, userId, isAdmin);
+    mem.set(key, (mem.get(key) || 0) + delta);
+    return mem.get(key);
+  }
+
+  // đảm bảo user tồn tại trước (balance có sẵn)
+  await ensureUser(guildId, userId, isAdmin);
+
+  const res = await c.findOneAndUpdate(
+    { guildId, userId },
+    { $inc: { balance: delta }, $set: { updatedAt: new Date() } },
+    { returnDocument: "after" }
+  );
+
+  // res.value luôn phải có nếu findOneAndUpdate ok
   return res.value.balance;
 }
 
 module.exports = {
+  DEFAULT_USER_COINS,
+  ADMIN_TEST_COINS,
   getBalance,
   addBalance,
 };
