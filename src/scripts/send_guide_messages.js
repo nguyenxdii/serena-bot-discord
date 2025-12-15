@@ -63,11 +63,9 @@ client.once("ready", async () => {
     const embedMap = new EmbedBuilder()
       .setTitle('🗺️ BẢN ĐỒ "TỔ DÂN PHỐ" GIẢI TRÍ')
       .setDescription(
-        "Chào mừng cư dân đến với Khu Vui Chơi! Dưới đây là hướng dẫn các khu vực:"
+        "Chào mừng đến với Khu Vui Chơi! Dưới đây là hướng dẫn các khu vực:"
       )
       .setColor("Gold")
-      .setThumbnail("https://cdn-icons-png.flaticon.com/512/1698/1698535.png") // Icon bản đồ
-      .setImage("attachment://banner2.png") // Gắn Banner 2
       .addFields(
         {
           name: "📢 Thông Tin & Sự Kiện",
@@ -103,39 +101,41 @@ client.once("ready", async () => {
       .setDescription(
         "Để đảm bảo trải nghiệm tốt nhất, vui lòng tuân thủ quy định và sử dụng đúng lệnh."
       )
-      .setImage("attachment://banner1.png") // Gắn Banner 1
       .addFields(
         {
-          name: "🚫 Quy Định",
+          name: "🚫 Quy Định & Lưu Ý",
           value:
-            "• **Không spam** lệnh quá nhanh gây lag bot.\n" +
-            "• **Không cay cú**, chửi bới khi thua cược.\n" +
-            "• Vui lòng **nhắn đúng kênh** quy định (Bot sẽ nhắc nhở 15s nếu sai).",
+            "• **Không spam** lệnh quá nhanh.\n" +
+            "• **Không cay** khi thua.\n" +
+            "• **Nhắn đúng kênh** quy định (Bot sẽ nhắc nhở nếu sai).\n" +
+            "• Game luôn có yếu tố may mắn, hãy chơi giải trí!",
           inline: false,
         },
         {
           name: "📅 Điểm Danh & Tài Chính",
           value:
-            "`/daily` : Điểm danh hàng ngày (Có streak & bonus tuần)\n" +
-            "`/wallet` : Xem túi tiền\n" +
-            "`/tip user:<@user> amount:<số tiền> note:<lời nhắn>` : Lì xì cho bạn bè (Free fee)\n" +
-            "`/pay user:<@user> amount:<số tiền>` : Chuyển khoản giao dịch (Phí 5%)",
+            "`/daily` : Điểm danh tại <#" +
+            CHANNELS.checkin +
+            ">\n" +
+            "`/wallet` : Xem số dư túi tiền (Riêng tư)\n" +
+            "`/tip` : Lì xì cho bạn bè (Miễn phí, chỉ cần xác nhận)\n" +
+            "`/pay` : Chuyển khoản giao dịch (Phí 5%, cần xác nhận)",
           inline: false,
         },
         {
           name: "🃏 Blackjack (Xì Dách)",
           value:
-            "`/blackjack bet:<tiền>` : Bắt đầu ván\n" +
-            "`/blackjack-help` : Xem luật chơi chi tiết\n" +
-            "`/blackjack-stats` : Xem thống kê thắng thua",
+            "`/blackjack bet:<tiền>` : Bắt đầu ván mới\n" +
+            "`/blackjack-help` : Hướng dẫn luật chơi Blackjack\n" +
+            "`/blackjack-stats` : Xem thống kê thắng/thua của bạn",
           inline: false,
         },
         {
           name: "🎲 Ba Cào (3 Cây)",
           value:
-            "`/bacay bet:<tiền>` : Bắt đầu ván\n" +
-            "`/bacay-help` : Xem luật chơi chi tiết\n" +
-            "`/bacay-top` : Xem bảng xếp hạng đại gia",
+            "`/bacay bet:<tiền>` : Bắt đầu ván mới\n" +
+            "`/bacay-help` : Hướng dẫn luật chơi Ba Cào\n" +
+            "`/bacay-stats` : Xem thống kê thắng/thua của bạn",
           inline: false,
         }
       );
