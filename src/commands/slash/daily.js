@@ -1,5 +1,9 @@
 // src/commands/slash/daily.js
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  PermissionFlagsBits,
+} = require("discord.js");
 const { claimDaily } = require("../../features/wallet");
 const { fmt } = require("../../games/bacay/ui"); // Reusing fmt helper
 
@@ -12,8 +16,11 @@ async function run(interaction) {
 
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
+  const isAdmin = interaction.member?.permissions?.has(
+    PermissionFlagsBits.Administrator
+  );
 
-  const result = await claimDaily(guildId, userId);
+  const result = await claimDaily(guildId, userId, isAdmin);
 
   if (result.status === "fail") {
     // Cooldown
@@ -28,19 +35,6 @@ async function run(interaction) {
     return interaction.editReply("❌ Có lỗi xảy ra. Vui lòng thử lại!");
   }
 
-  const { reward, streakBonus, weeklyBonus, total, streak, weekly, balance } =
-    result;
-
-  const embed = new EmbedBuilder()
-    .setTitle("☀️ DAILY REWARD")
-    .setColor("Gold")
-    .setDescription(`Chúc mừng <@${userId}> đã điểm danh thành công!`)
-    .addFields(
-      {
-        name: "💰 Phần thưởng",
-        value: `+**${fmt(total)}** coin`,
-        inline: true,
-      },
       { name: "🔥 Streak", value: `**${streak}** ngày`, inline: true },
       { name: "🏦 Ví của bạn", value: `**${fmt(balance)}** coin`, inline: true }
     );

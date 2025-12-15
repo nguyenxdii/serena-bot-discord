@@ -73,23 +73,11 @@ function buildButtons(gameId, state) {
         .setEmoji("✅")
         .setStyle(ButtonStyle.Success)
     );
-  } else {
-    // Kết thúc: Chơi lại + Thoát
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`bacay:${gameId}:retry`)
-        .setLabel("Chơi lại")
-        .setEmoji("🔄")
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId(`bacay:${gameId}:exit`)
-        .setLabel("Thoát")
-        .setEmoji("❌")
-        .setStyle(ButtonStyle.Secondary)
-    );
+    // Kết thúc: Không hiện nút gì (User yêu cầu bỏ Retry/Exit)
+    // row.addComponents(...)
   }
 
-  return [row];
+  return row.components.length > 0 ? [row] : [];
 }
 
 module.exports = { buildEmbed, buildButtons, fmt };

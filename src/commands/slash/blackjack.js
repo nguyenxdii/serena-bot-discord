@@ -16,6 +16,26 @@ const {
   setCooldown,
 } = require("../../features/economyRules");
 
+// Helper for Logging
+async function logGameEnd(client, guildId, userId, bet, result, pay, finalProfit, fee, balance) {
+  const { logTransaction } = require("../../features/transactionLog");
+  const { logBlackjack } = require("../../utils/discordLogger");
+
+  // DB Log
+  await logTransaction({
+    type: "BLACKJACK",
+    guildId,
+    userId,
+    amount: pay, // Payout amount
+    fee: fee,
+    reason: `Result: ${result}`,
+    meta: { bet, result, profit: finalProfit }
+  });
+
+  // Discord Log
+  logBlackjack(client, userId, bet, result, finalProfit, balance);
+}
+
 const games = new Map(); // gameId -> { guildId, userId, state }
 
 function makeId() {
@@ -93,12 +113,105 @@ async function start(interaction) {
     const finalProfit = applyWinFee(profit);
     pay = bet + finalProfit; // Total return
 
+    // Helper for Logging
+    async function logGameEnd(
+      client,
+      guildId,
+      userId,
+      bet,
+      result,
+      pay,
+      finalProfit,
+      balance
+    ) {
+      const { logTransaction } = require("../../features/transactionLog");
+      const { logBlackjack } = require("../../utils/discordLogger");
+
+      // DB Log
+      await logTransaction({
+        type: "BLACKJACK",
+        guildId,
+        userId,
+        amount: pay, // Payout amount
     try {
       balance = await addBalance(guildId, userId, pay, admin);
       await recordBlackjackRound(guildId, userId, state.result, state.bet, pay);
+      await logGameEnd(
+        interaction.client,
+        guildId,
+        userId,
+        state.bet,
+        state.result,
+        pay,
+        finalProfit,
+        fee,
+        balance
+      );
     } catch (e) {
       console.error("payout/stats error:", e);
     }
+    // ...
+    await recordBlackjackRound(
+      guildId,
+      userId,
+      g.state.result,
+      g.state.bet,
+      pay
+    );
+    await logGameEnd(
+      interaction.client,
+      guildId,
+      userId,
+      g.state.bet,
+      g.state.result,
+      pay,
+      finalProfit,
+      balance
+    );
+
+    games.delete(gameId);
+    // ...
+    await recordBlackjackRound(
+      guildId,
+      userId,
+      g.state.result,
+      g.state.bet,
+      pay
+    );
+    await logGameEnd(
+      interaction.client,
+      guildId,
+      userId,
+      g.state.bet,
+      g.state.result,
+      pay,
+      finalProfit,
+      balance
+    );
+
+    games.delete(gameId);
+    // ...
+    await recordBlackjackRound(
+      guildId,
+      userId,
+      g.state.result,
+      g.state.bet,
+      pay
+    );
+    await logGameEnd(
+      interaction.client,
+      guildId,
+      userId,
+      g.state.bet,
+      g.state.result,
+      pay,
+      finalProfit,
+      balance
+    );
+
+    games.delete(gameId);
+    // ... existing code ...
+    module.exports = { slashData, start, onButton };
 
     return interaction.editReply({
       embeds: [embed({ userId, state, balance, revealDealer: true })],
@@ -165,6 +278,7 @@ async function onButton(interaction) {
       // Fee
       const profit = pay - g.state.bet;
       const finalProfit = applyWinFee(profit);
+      const fee = profit - finalProfit;
       pay = g.state.bet + finalProfit;
 
       balance = await addBalance(guildId, userId, pay, admin);
@@ -176,6 +290,7 @@ async function onButton(interaction) {
         g.state.bet,
         pay
       );
+      await logGameEnd(interaction.client, guildId, userId, g.state.bet, g.state.result, pay, finalProfit, fee, balance);
 
       games.delete(gameId);
       setCooldown(userId, "blackjack"); // Reset cooldown on end game

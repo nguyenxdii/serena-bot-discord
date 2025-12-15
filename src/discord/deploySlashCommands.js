@@ -5,6 +5,14 @@ const { DISCORD_TOKEN, APPLICATION_ID, GUILD_ID } = require("../config/env");
 const { slashData: blackjackSlash } = require("../commands/slash/blackjack");
 const { slashData: walletSlash } = require("../commands/slash/wallet");
 const { slashData: dailySlash } = require("../commands/slash/daily");
+const { slashData: paySlash } = require("../commands/slash/pay");
+const { slashData: adminEcoSlash } = require("../commands/slash/admin-economy");
+const { slashData: adminUserSlash } = require("../commands/slash/admin-user");
+const {
+  slashData: adminHistSlash,
+} = require("../commands/slash/admin-history");
+const { addSlash, removeSlash } = require("../commands/slash/admin-money");
+
 const { slashData: helpSlash } = require("../commands/slash/blackjack-help");
 const { slashData: statsSlash } = require("../commands/slash/blackjack-stats");
 
@@ -27,6 +35,13 @@ async function deploySlashCommands() {
     blackjackSlash.toJSON(),
     walletSlash.toJSON(),
     dailySlash.toJSON(),
+    tipSlash.toJSON(),
+    paySlash.toJSON(),
+    adminEcoSlash.toJSON(),
+    adminUserSlash.toJSON(),
+    adminHistSlash.toJSON(),
+    addSlash.toJSON(),
+    removeSlash.toJSON(),
     helpSlash.toJSON(),
     statsSlash.toJSON(),
     bacaySlash.toJSON(),

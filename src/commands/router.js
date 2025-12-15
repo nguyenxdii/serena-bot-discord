@@ -13,12 +13,30 @@ const bacayStats = require("./slash/bacay-stats");
 const bacayTop = require("./slash/bacay-top");
 
 const wallet = require("./slash/wallet");
+const daily = require("./slash/daily");
+const tip = require("./slash/tip");
+const pay = require("./slash/pay");
+
+// Admin Modules
+const adminEco = require("./slash/admin-economy");
+const adminUser = require("./slash/admin-user");
+const adminHist = require("./slash/admin-history");
+const adminMoney = require("./slash/admin-money");
 
 const COMMANDS = {
   blackjack: bj.start, // blackjack.js exports 'start' not 'run' based on previous read
   "blackjack-help": bjHelp.run,
   "blackjack-stats": bjStats.run,
   wallet: wallet.run,
+  daily: daily.run,
+  tip: tip.run,
+  pay: pay.run,
+
+  "admin-economy": adminEco.run,
+  "admin-user": adminUser.run,
+  "admin-history": adminHist.run,
+  "admin-addcoin": adminMoney.runAdd,
+  "admin-removecoin": adminMoney.runRemove,
 
   bacay: bacay.run,
   "bacay-help": bacayHelp.run,

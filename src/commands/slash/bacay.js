@@ -1,6 +1,37 @@
 // src/commands/slash/bacay.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const { getBalance, addBalance } = require("../../features/wallet");
+const { applyWinFee } = require("../../features/economyRules");
+
+// Helper for Logging
+async function logGameEnd(
+  client,
+  guildId,
+  userId,
+  bet,
+  result,
+  pay,
+  finalProfit,
+  fee,
+  balance
+) {
+  const { logTransaction } = require("../../features/transactionLog");
+  const { logBacay } = require("../../utils/discordLogger");
+
+  // DB Log
+  await logTransaction({
+    type: "BACAY",
+    guildId,
+    userId,
+    amount: pay, // Payout amount
+    fee: fee,
+    reason: `Result: ${result}`,
+    meta: { bet, result, profit: finalProfit },
+  });
+
+  // Discord Log
+  logBacay(client, userId, bet, result, finalProfit, balance);
+}
 const {
   startGame,
   revealPlayer,
@@ -125,7 +156,14 @@ async function onButton(interaction) {
   if (action === "confirm") {
     resolveGame(state);
 
-    const pay = getPayout(state);
+    let pay = getPayout(state); // RAW payout
+
+    // FEE LOGIC
+    const profit = pay - state.bet;
+    const finalProfit = applyWinFee(profit); // Net profit
+    const fee = profit - finalProfit;
+    pay = state.bet + finalProfit; // Final Payout
+
     let balance;
 
     // Payout
@@ -138,6 +176,19 @@ async function onButton(interaction) {
 
       // Record Stats
       await recordBacayGame(guildId, userId, state.result, state.bet, pay);
+
+      // Log DB + Discord
+      await logGameEnd(
+        interaction.client,
+        guildId,
+        userId,
+        state.bet,
+        state.result,
+        pay,
+        finalProfit,
+        fee,
+        balance
+      );
     } catch (e) {
       console.error("Payout error:", e);
     }

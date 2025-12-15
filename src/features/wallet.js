@@ -42,6 +42,14 @@ async function ensureUser(guildId, userId, isAdmin) {
         weeklyCounter: 0,
         lastDailyAt: new Date(0), // 1970
         cooldowns: {},
+        // Transfer Stats
+        transferStats: {
+          tipCountToday: 0,
+          tipLastAt: new Date(0),
+          payOutToday: 0,
+          payLastAt: new Date(0),
+          payDayKey: "", // YYYY-MM-DD
+        },
       },
       $set: { updatedAt: new Date() },
     },
@@ -87,10 +95,65 @@ async function addBalance(guildId, userId, delta, isAdmin) {
 }
 
 /**
+ * processTransfer: Xử lý chuyển tiền 2 chiều an toàn (Deduct -> Add)
+ * @param {string} guildId
+ * @param {string} fromId
+ * @param {string} toId
+ * @param {number} amount (amount to deduct from sender, includes fee if burn)
+ * @param {number} receivedAmount (amount receiver gets)
+ * @param {object} statsUpdate (Mongo update op for sender stats i.e. $inc, $set)
+ */
+async function processTransfer(
+  guildId,
+  fromId,
+  toId,
+  amount,
+  receivedAmount,
+  statsUpdate = {}
+) {
+  const c = col();
+  if (!c) return { success: false, reason: "No DB" };
+
+  // 1. Deduct from Sender (Optimistic check balance)
+  const deductRes = await c.findOneAndUpdate(
+    {
+      guildId,
+      userId: fromId,
+      balance: { $gte: amount }, // Check sufficient funds
+    },
+    {
+      $inc: { balance: -amount },
+      ...statsUpdate,
+      $set: { updatedAt: new Date() }, // will overwrite any $set in statsUpdate if conflict, but usually statsUpdate uses $set specific fields
+    },
+    { returnDocument: "after" }
+  );
+
+  if (!deductRes) {
+    return { success: false, reason: "Insufficient balance or race condition" };
+  }
+
+  // 2. Add to Receiver
+  // If this fails (very rare), we should refund sender manually or log critical error.
+  // For now we assume success if ensureUser runs.
+  await ensureUser(guildId, toId, false);
+
+  await c.updateOne(
+    { guildId, userId: toId },
+    {
+      $inc: { balance: receivedAmount },
+      $set: { updatedAt: new Date() },
+    }
+  );
+
+  return { success: true, senderBalance: deductRes.balance };
+}
+
+/**
  * claimDaily: Xử lý daily reward + streak + weekly
  * Return: { status: 'success'|'fail', reward, bonus, streak, weeklyReward, nextTime }
  */
-async function claimDaily(guildId, userId) {
+async function claimDaily(guildId, userId, isAdmin = false) {
   const {
     calculateDailyReward,
     WEEKLY_REWARD,
@@ -189,4 +252,5 @@ module.exports = {
   addBalance,
   getUserData,
   claimDaily,
+  processTransfer,
 };

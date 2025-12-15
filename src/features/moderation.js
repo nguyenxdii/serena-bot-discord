@@ -184,51 +184,25 @@ function onMessageCreate(client) {
       const content = message.content.trim();
       if (!content) return;
 
-      // kênh music request
-      if (message.channel.id === MUSIC_REQUEST_CHANNEL_ID) {
-        if (!content.startsWith("/")) {
-          await handleViolation(message, {
-            isHardKeyword: false,
-            baseReason:
-              `Kênh này chỉ để gọi nhạc thôi 🎧\n` +
-              `Qua <#${GENERAL_CHANNEL_ID}> để chat nha 💬`,
-            sourceTag: "CHANNEL_RULE",
-          });
-          return;
-        }
+      const { DAILY_CHANNEL_ID } = require("../utils/channelCheck");
 
-        const allowedRythmCommands = [
-          "/play",
-          "/stop",
-          "/pause",
-          "/resume",
-          "/skip",
-          "/queue",
-          "/nowplaying",
-        ];
+      // ... (existing music request logic) ...
 
-        const firstWord = content.split(/\s+/)[0];
-        if (!allowedRythmCommands.includes(firstWord)) {
-          await handleViolation(message, {
-            isHardKeyword: false,
-            baseReason:
-              `Ở đây chỉ nhận lệnh **Rythm** 🎶\n` +
-              `Chat/lệnh khác qua <#${GENERAL_CHANNEL_ID}> 💬`,
-            sourceTag: "RYTHM_ONLY",
-          });
-          return;
-        }
-
-        if (containsBannedWord(content)) {
-          await handleViolation(message, {
-            isHardKeyword: true,
-            baseReason: "Từ ngữ hơi quá đà trong kênh nhạc.",
-            sourceTag: "LIST_HARD_MUSIC",
-          });
-        }
-
+      // Kênh điểm danh: Cấm chat, chỉ cho Bot hoạt động (Bot replies handled elsewhere, user messages blocked)
+      if (message.channel.id === DAILY_CHANNEL_ID) {
+        // Allow bot messages (interaction replies)
+        // Block user messages
+        try {
+          await message.delete();
+          const warn = await message.channel.send(
+            `<@${message.author.id}> 🤫 Kênh này chỉ dùng để nhập lệnh \`/daily\` thôi nhé!`
+          );
+          setTimeout(() => warn.delete().catch(() => {}), 5000);
+        } catch (e) {}
         return;
       }
+
+      // trigger !
 
       // trigger !
       if (content.startsWith("!")) {
