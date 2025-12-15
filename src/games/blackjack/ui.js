@@ -34,7 +34,8 @@ function embed({ userId, state, balance, revealDealer }) {
   return new EmbedBuilder()
     .setTitle("🃏 BLACKJACK")
     .setDescription(
-      `👤 <@${userId}> | 💰 Balance: **${fmt(balance)}**\n` +
+      `👤 <@${userId}>\n` +
+        `💰 Balance: **${fmt(balance)}**\n` +
         `🎲 Bet: **${fmt(state.bet)}**${state.doubled ? " (x2 ✅)" : ""}`
     )
     .addFields(
