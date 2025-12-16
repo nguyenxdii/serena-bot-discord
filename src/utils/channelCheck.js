@@ -1,4 +1,4 @@
-const { PermissionFlagsBits } = require("discord.js");
+const { PermissionFlagsBits, MessageFlags } = require("discord.js");
 
 const DAILY_CHANNEL_ID = "1450065824210489395";
 const WORDCHAIN_CHANNEL_ID = "1450065511231520778";
@@ -99,9 +99,15 @@ async function checkChannel(interaction) {
 async function warnSpecific(interaction, msg) {
   try {
     if (interaction.deferred || interaction.replied) {
-      await interaction.followUp({ content: `⚠️ ${msg}`, ephemeral: true });
+      await interaction.followUp({
+        content: `⚠️ ${msg}`,
+        flags: MessageFlags.Ephemeral,
+      });
     } else {
-      await interaction.reply({ content: `⚠️ ${msg}`, ephemeral: true });
+      await interaction.reply({
+        content: `⚠️ ${msg}`,
+        flags: MessageFlags.Ephemeral,
+      });
     }
   } catch (e) {}
 }

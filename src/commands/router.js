@@ -1,5 +1,6 @@
 // src/commands/router.js
 const { checkChannel } = require("../utils/channelCheck");
+const { MessageFlags } = require("discord.js");
 
 // Blackjack Modules
 const bj = require("./slash/blackjack");
@@ -95,12 +96,14 @@ function onInteractionCreate(client) {
         if (!interaction.replied && !interaction.deferred) {
           await interaction.reply({
             content: "❌ Lỗi hệ thống.",
-            ephemeral: true,
+            title: "Error",
+            flags: MessageFlags.Ephemeral,
           });
         } else {
           await interaction.followUp({
             content: "❌ Lỗi hệ thống.",
-            ephemeral: true,
+            title: "Error",
+            flags: MessageFlags.Ephemeral,
           });
         }
       } catch {}

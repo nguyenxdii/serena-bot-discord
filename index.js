@@ -1,6 +1,6 @@
 require("dotenv").config();
 
-const { Client, GatewayIntentBits } = require("discord.js");
+const { Client, GatewayIntentBits, Events } = require("discord.js");
 const { DISCORD_TOKEN } = require("./src/config/env");
 const { connectMongo } = require("./src/db/mongo");
 const { deploySlashCommands } = require("./src/discord/deploySlashCommands");
@@ -21,7 +21,7 @@ const client = new Client({
   ],
 });
 
-client.once("ready", async () => {
+client.once(Events.ClientReady, async () => {
   console.log(`🔥 Bot đã online: ${client.user.tag}`);
 
   await connectMongo(); // nếu có MONGODB_URI

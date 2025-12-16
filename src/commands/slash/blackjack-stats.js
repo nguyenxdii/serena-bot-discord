@@ -1,5 +1,9 @@
 // src/commands/slash/blackjack-stats.js
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  MessageFlags,
+} = require("discord.js");
 const { getBlackjackStats } = require("../../features/blackjackStats");
 
 function fmt(n) {
@@ -38,7 +42,7 @@ async function run(interaction) {
     )
     .setFooter({ text: "Chỉ bạn mới thấy thống kê này." });
 
-  return interaction.reply({ embeds: [e], ephemeral: true });
+  return interaction.reply({ embeds: [e], flags: MessageFlags.Ephemeral });
 }
 
 module.exports = { slashData, run };

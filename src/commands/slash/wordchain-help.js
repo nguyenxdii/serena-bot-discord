@@ -1,5 +1,9 @@
 // src/commands/slash/wordchain-help.js
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  MessageFlags,
+} = require("discord.js");
 
 const slashData = new SlashCommandBuilder()
   .setName("wordchain-help")
@@ -40,7 +44,7 @@ async function run(interaction) {
     )
     .setFooter({ text: "Chúc bạn nối từ vui vẻ và không vấp!" });
 
-  return interaction.reply({ embeds: [e], ephemeral: true });
+  return interaction.reply({ embeds: [e], flags: MessageFlags.Ephemeral });
 }
 
 module.exports = { slashData, run };

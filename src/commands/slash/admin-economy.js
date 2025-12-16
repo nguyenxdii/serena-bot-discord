@@ -2,6 +2,7 @@ const {
   SlashCommandBuilder,
   EmbedBuilder,
   PermissionFlagsBits,
+  MessageFlags,
 } = require("discord.js");
 const { getDb } = require("../../db/mongo");
 const { fmt } = require("../../games/three-card/ui");
@@ -15,11 +16,11 @@ async function run(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) {
     return interaction.reply({
       content: "❌ Chỉ Admin mới được dùng.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const db = getDb();
   if (!db) return interaction.editReply("❌ DB Error.");

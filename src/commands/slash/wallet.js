@@ -1,5 +1,9 @@
 // src/commands/slash/wallet.js
-const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  MessageFlags,
+} = require("discord.js");
 const { getBalance } = require("../../features/wallet");
 
 function fmt(n) {
@@ -23,7 +27,7 @@ async function run(interaction) {
 
   return interaction.reply({
     content: `💰 Ví của bạn: **${fmt(bal)}** coin`,
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }
 

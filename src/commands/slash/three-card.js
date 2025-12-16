@@ -1,5 +1,9 @@
 // src/commands/slash/three-card.js
-const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  MessageFlags,
+} = require("discord.js");
 const { getBalance, addBalance } = require("../../features/wallet");
 const { applyWinFee } = require("../../features/economyRules");
 
@@ -79,14 +83,14 @@ async function run(interaction) {
     console.error("getBalance error:", e);
     return interaction.reply({
       content: "❌ Lỗi ví tiền. Thử lại sau.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
   if (bet > balance) {
     return interaction.reply({
       content: `❌ Không đủ tiền! Số dư: **${fmt(balance)}**`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -96,7 +100,7 @@ async function run(interaction) {
   } catch (e) {
     return interaction.reply({
       content: "❌ Lỗi trừ tiền. Thử lại sau.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -133,14 +137,14 @@ async function onButton(interaction) {
   if (!game) {
     return interaction.followUp({
       content: "❌ Ván chơi đã hết hạn hoặc không tồn tại.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
   if (interaction.user.id !== game.userId) {
     return interaction.followUp({
       content: "❌ Không phải ván của bạn!",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 

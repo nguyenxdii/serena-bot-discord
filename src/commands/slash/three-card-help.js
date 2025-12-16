@@ -1,5 +1,9 @@
 // src/commands/slash/three-card-help.js
-const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  MessageFlags,
+} = require("discord.js");
 
 const slashData = new SlashCommandBuilder()
   .setName("three-card-help")
@@ -32,7 +36,7 @@ async function run(interaction) {
     )
     .setFooter({ text: "Lệnh: /three-card bet:<số tiền>" });
 
-  return interaction.reply({ embeds: [e], ephemeral: true });
+  return interaction.reply({ embeds: [e], flags: MessageFlags.Ephemeral });
 }
 
 module.exports = { slashData, run };

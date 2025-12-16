@@ -8,6 +8,7 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
+  MessageFlags,
 } = require("discord.js");
 
 const {
@@ -102,14 +103,14 @@ async function handleChallenge(interaction) {
   if (targetUser.id === author.id) {
     return interaction.reply({
       content: "❌ Không thể tự thách đấu bản thân!",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
   if (targetUser.bot) {
     return interaction.reply({
       content: "❌ Không thể thách đấu Bot!",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -118,7 +119,7 @@ async function handleChallenge(interaction) {
   if (balance < bet) {
     return interaction.reply({
       content: `❌ Bạn không đủ tiền! (Có: ${balance})`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -187,7 +188,7 @@ async function handleAccept(interaction) {
   if (!result.success) {
     return interaction.reply({
       content: `❌ Lỗi: ${result.reason}`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -209,7 +210,10 @@ async function handleDecline(interaction) {
       embeds: [],
     });
   } else {
-    interaction.reply({ content: "❌ Không thể hủy.", ephemeral: true });
+    interaction.reply({
+      content: "❌ Không thể hủy.",
+      flags: MessageFlags.Ephemeral,
+    });
   }
 }
 
@@ -283,7 +287,7 @@ async function handleWordSubmit(interaction) {
       // Just a warning (not turn, or wrong time, or internal error)
       await interaction.followUp({
         content: `⚠️ ${res.message}`,
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
     return;

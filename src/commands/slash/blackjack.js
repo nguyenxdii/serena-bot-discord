@@ -1,5 +1,9 @@
 // src/commands/slash/blackjack.js
-const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  MessageFlags,
+} = require("discord.js");
 const { recordBlackjackRound } = require("../../features/blackjackStats");
 const {
   startGame,
@@ -80,7 +84,7 @@ async function start(interaction) {
       content: `⏳ Bạn thao tác quá nhanh! Vui lòng chờ **${(cd / 1000).toFixed(
         1
       )}s** nữa.`,
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -93,13 +97,16 @@ async function start(interaction) {
   } catch (e) {
     return interaction.reply({
       content: "❌ Lỗi ví tiền. Thử lại sau.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
   const errorMsg = validateBet(balance, bet);
   if (errorMsg) {
-    return interaction.reply({ content: errorMsg, ephemeral: true });
+    return interaction.reply({
+      content: errorMsg,
+      flags: MessageFlags.Ephemeral,
+    });
   }
 
   // 3. Deduct Bet
@@ -108,7 +115,7 @@ async function start(interaction) {
   } catch (e) {
     return interaction.reply({
       content: "❌ Không trừ được tiền cược (DB chậm/lỗi). Thử lại nhé.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -182,13 +189,13 @@ async function onButton(interaction) {
   if (!g) {
     return interaction.followUp({
       content: "Ván đã hết hạn hoặc kết thúc.",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
   if (interaction.user.id !== g.userId) {
     return interaction.followUp({
       content: "Mày thích tấy mấy tay chân không 😼?",
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
   }
 
@@ -300,13 +307,13 @@ async function onButton(interaction) {
     if (g.state.player.length !== 2) {
       return interaction.followUp({
         content: "Double chỉ dùng khi bạn mới có 2 lá.",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
     if (balance < g.state.bet) {
       return interaction.followUp({
         content: "Không đủ tiền để Double.",
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
 
@@ -358,7 +365,7 @@ async function onButton(interaction) {
 
   return interaction.followUp({
     content: "Hành động không hợp lệ.",
-    ephemeral: true,
+    flags: MessageFlags.Ephemeral,
   });
 }
 

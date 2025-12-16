@@ -1,4 +1,8 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
+const {
+  SlashCommandBuilder,
+  PermissionFlagsBits,
+  MessageFlags,
+} = require("discord.js");
 const { addBalance } = require("../../features/wallet");
 const { logTransaction } = require("../../features/transactionLog");
 const { fmt } = require("../../games/three-card/ui");
@@ -42,7 +46,7 @@ const removeSlash = new SlashCommandBuilder()
 async function runAdd(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator))
     return;
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const user = interaction.options.getUser("user");
   const amount = interaction.options.getInteger("amount");
@@ -70,7 +74,7 @@ async function runAdd(interaction) {
 async function runRemove(interaction) {
   if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator))
     return;
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const user = interaction.options.getUser("user");
   const amount = interaction.options.getInteger("amount");

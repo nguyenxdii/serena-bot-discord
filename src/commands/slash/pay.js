@@ -4,6 +4,7 @@ const {
   ButtonBuilder,
   ButtonStyle,
   ComponentType,
+  MessageFlags,
 } = require("discord.js");
 const { getUserData, processTransfer } = require("../../features/wallet");
 const { logTransaction } = require("../../features/transactionLog");
@@ -46,7 +47,7 @@ const slashData = new SlashCommandBuilder()
 
 async function run(interaction) {
   // 1. Initial Private
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   const sender = interaction.user;
   const targetUser = interaction.options.getUser("user");
