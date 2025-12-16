@@ -1,5 +1,6 @@
 // src/features/wordchain/wordChain.service.js
 const { getDb } = require("../../db/mongo");
+const { ObjectId } = require("mongodb");
 const { processTransfer, getUserData } = require("../wallet");
 const { processMatchResult } = require("../elo/elo.service");
 const { validateWord } = require("../gemini/gemini.service");
@@ -44,7 +45,7 @@ async function acceptMatch(matchId, acceptorId) {
   const db = getDb();
   const match = await db
     .collection(COLLECTION_NAME)
-    .findOne({ _id: matchId, status: "PENDING" });
+    .findOne({ _id: new ObjectId(matchId), status: "PENDING" });
 
   if (!match) return { success: false, reason: "Match not found or expired" };
   if (match.playerBId !== acceptorId)
@@ -104,7 +105,9 @@ async function acceptMatch(matchId, acceptorId) {
 
   return {
     success: true,
-    match: await db.collection(COLLECTION_NAME).findOne({ _id: matchId }),
+    match: await db
+      .collection(COLLECTION_NAME)
+      .findOne({ _id: new ObjectId(matchId) }),
   };
 }
 
@@ -113,7 +116,9 @@ async function acceptMatch(matchId, acceptorId) {
  */
 async function cancelMatch(matchId, userId, reason = "Declined") {
   const db = getDb();
-  const match = await db.collection(COLLECTION_NAME).findOne({ _id: matchId });
+  const match = await db
+    .collection(COLLECTION_NAME)
+    .findOne({ _id: new ObjectId(matchId) });
 
   if (!match) return;
   if (match.status !== "PENDING") return;
@@ -123,7 +128,10 @@ async function cancelMatch(matchId, userId, reason = "Declined") {
 
   await db
     .collection(COLLECTION_NAME)
-    .updateOne({ _id: matchId }, { $set: { status: "CANCELLED", reason } });
+    .updateOne(
+      { _id: new ObjectId(matchId) },
+      { $set: { status: "CANCELLED", reason } }
+    );
   // No refund needed as escrow happens on Accept
   return true;
 }
@@ -134,7 +142,9 @@ async function cancelMatch(matchId, userId, reason = "Declined") {
 async function submitWord(matchId, userId, word) {
   const db = getDb();
   // 1. Atomic Check & Lock
-  const match = await db.collection(COLLECTION_NAME).findOne({ _id: matchId });
+  const match = await db
+    .collection(COLLECTION_NAME)
+    .findOne({ _id: new ObjectId(matchId) });
   if (!match || match.status !== "ACTIVE")
     return { success: false, message: "Match not active" };
   if (match.turnPlayerId !== userId)
@@ -197,7 +207,9 @@ async function submitWord(matchId, userId, word) {
  */
 async function endMatch(matchId, winnerId, reason) {
   const db = getDb();
-  const match = await db.collection(COLLECTION_NAME).findOne({ _id: matchId });
+  const match = await db
+    .collection(COLLECTION_NAME)
+    .findOne({ _id: new ObjectId(matchId) });
   if (!match || match.status === "FINISHED") return;
 
   const loserId =
@@ -206,7 +218,7 @@ async function endMatch(matchId, winnerId, reason) {
 
   // 1. Update Match
   await db.collection(COLLECTION_NAME).updateOne(
-    { _id: matchId },
+    { _id: new ObjectId(matchId) },
     {
       $set: {
         status: "FINISHED",
@@ -247,7 +259,9 @@ async function endMatch(matchId, winnerId, reason) {
 
 async function forfeitMatch(matchId, loserId) {
   const db = getDb();
-  const match = await db.collection(COLLECTION_NAME).findOne({ _id: matchId });
+  const match = await db
+    .collection(COLLECTION_NAME)
+    .findOne({ _id: new ObjectId(matchId) });
   if (!match || match.status !== "ACTIVE") return;
 
   // Check if loser is player

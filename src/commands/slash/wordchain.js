@@ -143,11 +143,11 @@ async function handleChallenge(interaction) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`wc:accept:${match._id}`)
-      .setLabel("Accept")
+      .setLabel("Chấp nhận")
       .setStyle(ButtonStyle.Success),
     new ButtonBuilder()
       .setCustomId(`wc:decline:${match._id}`)
-      .setLabel("Decline")
+      .setLabel("Hủy kèo")
       .setStyle(ButtonStyle.Danger)
   );
 
