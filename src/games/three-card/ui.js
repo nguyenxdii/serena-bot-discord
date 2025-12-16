@@ -1,4 +1,4 @@
-// src/games/bacay/ui.js
+// src/games/three-card/ui.js
 const {
   EmbedBuilder,
   ActionRowBuilder,
@@ -54,27 +54,23 @@ function buildButtons(gameId, state) {
   const row = new ActionRowBuilder();
 
   if (state.status === "PLAYING") {
-    // Nút Xem bài (chỉ hiện nếu chưa xem)
     if (!state.player.revealed) {
       row.addComponents(
         new ButtonBuilder()
-          .setCustomId(`bacay:${gameId}:view`)
+          .setCustomId(`tc:${gameId}:view`)
           .setLabel("Xem bài")
           .setEmoji("🃏")
           .setStyle(ButtonStyle.Primary)
       );
     }
 
-    // Nút Chốt (luôn hiện để lật bài dealer)
     row.addComponents(
       new ButtonBuilder()
-        .setCustomId(`bacay:${gameId}:confirm`)
+        .setCustomId(`tc:${gameId}:confirm`)
         .setLabel("Chốt (Ngửa bài)")
         .setEmoji("✅")
         .setStyle(ButtonStyle.Success)
     );
-    // Kết thúc: Không hiện nút gì (User yêu cầu bỏ Retry/Exit)
-    // row.addComponents(...)
   }
 
   return row.components.length > 0 ? [row] : [];

@@ -1,4 +1,4 @@
-// src/features/bacayStats.js
+// src/features/threeCardStats.js
 const { getDb } = require("../db/mongo");
 
 const mem = new Map();
@@ -6,8 +6,7 @@ const mem = new Map();
 function col() {
   const db = getDb();
   if (!db) return null;
-  return db.collection("bacay_stats"); // User requested 'bacayStats' but collection naming convention usually snake_case or camelCase. Using what seems consistent. Reviewing request: "bacayStats: {...}" inside commands probably. Collection name undefined, sticking to snake_case 'bacay_stats' or camelCase if project uses it.
-  // Blackjack used 'bj_stats'. I'll use 'bacay_stats'.
+  return db.collection("three_card_stats");
 }
 
 function defaultStats(guildId, userId) {
@@ -42,7 +41,7 @@ async function ensureStats(guildId, userId) {
 }
 
 // netDelta = pay - bet
-async function recordBacayGame(guildId, userId, result, bet, pay) {
+async function recordThreeCardGame(guildId, userId, result, bet, pay) {
   const c = col();
   const netDelta = (pay || 0) - (bet || 0);
 
@@ -76,13 +75,12 @@ async function getStats(guildId, userId) {
   return ensureStats(guildId, userId);
 }
 
-// For /bacay-top
+// For /three-card-leaderboard
 async function getTopWinners(guildId, limit = 10) {
   const c = col();
   if (!c) return [];
 
-  // Sort by net profit
   return c.find({ guildId }).sort({ net: -1 }).limit(limit).toArray();
 }
 
-module.exports = { recordBacayGame, getStats, getTopWinners };
+module.exports = { recordThreeCardGame, getStats, getTopWinners };

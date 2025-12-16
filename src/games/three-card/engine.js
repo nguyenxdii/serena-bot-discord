@@ -1,4 +1,4 @@
-// src/games/bacay/engine.js
+// src/games/three-card/engine.js
 const { createDeck, shuffle, calculateScore } = require("./cardUtils");
 
 function startGame(bet) {
@@ -8,7 +8,7 @@ function startGame(bet) {
 
   return {
     bet,
-    deck, // Not really needed after dealing, but kept for consistency
+    deck,
     player: {
       hand: playerHand,
       score: calculateScore(playerHand),

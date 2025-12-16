@@ -2,13 +2,14 @@
 const { PermissionFlagsBits } = require("discord.js");
 
 const ALLOWED_CHANNELS = [
-  "1450065466772029481",
-  "1450065511231520778",
-  "1450065534312779776",
-  "1450067312160805047",
+  "1450065466772029481", // Main Game Channel (Quầy 1)
+  "1450065511231520778", // Word Chain Channel (Formerly Table 2)
+  // "1450065534312779776", // Quầy 3 (Removed)
+  // "1450067312160805047", // Quầy 4 (Removed)
 ];
 
 const DAILY_CHANNEL_ID = "1450065824210489395";
+const WORDCHAIN_CHANNEL_ID = "1450065511231520778";
 
 // Admin bypass
 function isAdmin(member) {
@@ -25,36 +26,34 @@ async function checkChannel(interaction) {
   if (channelId === DAILY_CHANNEL_ID) {
     if (cmd === "daily") return true;
 
-    // Nếu dùng lệnh khác trong kênh daily -> Báo lỗi
     await interaction.reply({
-      content:
-        `⚠️ Kênh này chỉ dùng để điểm danh (` /
-        daily`). Vui lòng qua khu vực Game Zone!`,
+      content: `⚠️ Kênh này chỉ dùng để điểm danh (\`/daily\`). Vui lòng qua khu vực Game Zone!`,
       ephemeral: true,
     });
     return false;
   }
 
-  // 2. Lệnh Daily: Cho phép ở kênh Daily OR Game Zone?
-  // User không nói rõ, nhưng thường daily cho phép ở cả Game Zone.
-  // Nhưng user bảo "kênh điểm danh... phải là lệnh /daily", và "nếu dùng lệnh không đúng kênh thì hiện tin nhắn".
-  // Tạm thời cho phép daily ở cả 2 nơi để tiện lợi.
+  // 2. Lệnh Daily: CHỈ cho phép ở kênh Daily
   if (cmd === "daily") {
-    if (ALLOWED_CHANNELS.includes(channelId) || channelId === DAILY_CHANNEL_ID)
-      return true;
+    if (channelId === DAILY_CHANNEL_ID) return true;
 
-    // Warn daily wrong place
-    await warnWrongChannel(interaction, [
-      ...ALLOWED_CHANNELS,
-      DAILY_CHANNEL_ID,
-    ]);
+    await warnWrongChannel(interaction, [DAILY_CHANNEL_ID]);
     return false;
   }
 
-  // 3. Các lệnh Game khác (Blackjack, Bacay, Wallet...)
+  // 3. Lệnh Wordchain: CHỈ cho phép ở kênh Word Chain
+  if (cmd === "wordchain") {
+    if (channelId === WORDCHAIN_CHANNEL_ID) return true;
+
+    await warnWrongChannel(interaction, [WORDCHAIN_CHANNEL_ID]);
+    return false;
+  }
+
+  // 4. Các lệnh Game khác (Blackjack, ThreeCard, Wallet...)
+  // Chỉ cho phép ở các kênh trong ALLOWED_CHANNELS
   if (ALLOWED_CHANNELS.includes(channelId)) return true;
 
-  // 4. Sai kênh -> Báo lỗi
+  // 5. Sai kênh -> Báo lỗi
   await warnWrongChannel(interaction, ALLOWED_CHANNELS);
   return false;
 }

@@ -1,15 +1,13 @@
-// src/commands/slash/bacay-stats.js
+// src/commands/slash/three-card-stats.js
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const { getStats } = require("../../features/bacayStats");
-const { fmt } = require("../../games/bacay/ui");
+const { getStats } = require("../../features/threeCardStats");
+const { fmt } = require("../../games/three-card/ui");
 
 const slashData = new SlashCommandBuilder()
-  .setName("bacay-stats")
-  .setDescription("Xem thống kê chơi Ba Cào")
+  .setName("three-card-stats")
+  .setDescription("View Three Card Game Stats")
   .addUserOption((opt) =>
-    opt
-      .setName("user")
-      .setDescription("Người cần xem (để trống là xem của mình)")
+    opt.setName("user").setDescription("Target User (Empty for self)")
   );
 
 async function run(interaction) {

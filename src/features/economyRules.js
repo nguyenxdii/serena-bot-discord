@@ -116,7 +116,7 @@ function applyWinFee(profit) {
 /**
  * Check and Set Cooldown in Memory
  * @param {string} userId
- * @param {string} key (e.g., 'blackjack', 'bacay')
+ * @param {string} key (e.g., 'blackjack', 'three-card')
  * @returns {number|null} ms remaining or null if allowed
  */
 function checkCooldown(userId, key) {

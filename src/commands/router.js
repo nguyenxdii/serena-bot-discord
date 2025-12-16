@@ -6,16 +6,19 @@ const bj = require("./slash/blackjack");
 const bjHelp = require("./slash/blackjack-help");
 const bjStats = require("./slash/blackjack-stats");
 
-// Ba Cào Modules
-const bacay = require("./slash/bacay");
-const bacayHelp = require("./slash/bacay-help");
-const bacayStats = require("./slash/bacay-stats");
-const bacayTop = require("./slash/bacay-top");
+// Three Card Modules
+const threeCard = require("./slash/three-card");
+const threeCardHelp = require("./slash/three-card-help");
+const threeCardStats = require("./slash/three-card-stats");
+const threeCardTop = require("./slash/three-card-leaderboard");
 
 const wallet = require("./slash/wallet");
 const daily = require("./slash/daily");
 const tip = require("./slash/tip");
 const pay = require("./slash/pay");
+
+const wordchain = require("./slash/wordchain");
+const wordchainHelp = require("./slash/wordchain-help");
 
 // Admin Modules
 const adminEco = require("./slash/admin-economy");
@@ -24,13 +27,15 @@ const adminHist = require("./slash/admin-history");
 const adminMoney = require("./slash/admin-money");
 
 const COMMANDS = {
-  blackjack: bj.start, // blackjack.js exports 'start' not 'run' based on previous read
+  blackjack: bj.start,
   "blackjack-help": bjHelp.run,
   "blackjack-stats": bjStats.run,
   wallet: wallet.run,
   daily: daily.run,
   tip: tip.run,
   pay: pay.run,
+  wordchain: wordchain.run,
+  "wordchain-help": wordchainHelp.run,
 
   "admin-economy": adminEco.run,
   "admin-user": adminUser.run,
@@ -38,13 +43,13 @@ const COMMANDS = {
   "admin-addcoin": adminMoney.runAdd,
   "admin-removecoin": adminMoney.runRemove,
 
-  bacay: bacay.run,
-  "bacay-help": bacayHelp.run,
-  "bacay-stats": bacayStats.run,
-  "bacay-top": bacayTop.run,
+  "three-card": threeCard.run,
+  "three-card-help": threeCardHelp.run,
+  "three-card-stats": threeCardStats.run,
+  "three-card-leaderboard": threeCardTop.run,
 };
 
-const GAME_COMMANDS = Object.keys(COMMANDS); // All these are game-related restricted commands
+const GAME_COMMANDS = Object.keys(COMMANDS);
 
 function onInteractionCreate(client) {
   return async (interaction) => {
@@ -55,11 +60,7 @@ function onInteractionCreate(client) {
         const handler = COMMANDS[cmdName];
 
         if (handler) {
-          // Channel Restriction Check
-          // Only restrict game commands? User said "dùng bot chơi mini game".
-          // Assuming all current commands are game related.
           if (!(await checkChannel(interaction))) return;
-
           await handler(interaction);
         }
       }
@@ -68,18 +69,24 @@ function onInteractionCreate(client) {
       if (interaction.isButton()) {
         const id = interaction.customId;
 
-        // Blackjack Buttons
         if (id.startsWith("bj:")) {
-          // NOTE: channel check for buttons?
-          // Usually not needed if command started in right channel, but good for safety.
-          // But buttons often ephemeral or modifying existing msg.
-          // Let's rely on command restriction.
-          await bj.onButton(interaction); // blackjack.js exports onButton NOT defaults
+          await bj.onButton(interaction);
         }
 
-        // Ba Cào Buttons
-        if (id.startsWith("bacay:")) {
-          await bacay.onButton(interaction);
+        if (id.startsWith("tc:")) {
+          await threeCard.onButton(interaction);
+        }
+
+        if (id.startsWith("wc:")) {
+          await wordchain.onInteraction(interaction);
+        }
+      }
+
+      // MODALS
+      if (interaction.isModalSubmit()) {
+        const id = interaction.customId;
+        if (id.startsWith("wc:")) {
+          await wordchain.onInteraction(interaction);
         }
       }
     } catch (e) {

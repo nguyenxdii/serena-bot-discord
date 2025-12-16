@@ -1,4 +1,4 @@
-// src/commands/slash/bacay.js
+// src/commands/slash/three-card.js
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const { getBalance, addBalance } = require("../../features/wallet");
 const { applyWinFee } = require("../../features/economyRules");
@@ -16,11 +16,11 @@ async function logGameEnd(
   balance
 ) {
   const { logTransaction } = require("../../features/transactionLog");
-  const { logBacay } = require("../../utils/discordLogger");
+  const { logThreeCard } = require("../../utils/discordLogger");
 
   // DB Log
   await logTransaction({
-    type: "BACAY",
+    type: "THREE_CARD",
     guildId,
     userId,
     amount: pay, // Payout amount
@@ -30,16 +30,16 @@ async function logGameEnd(
   });
 
   // Discord Log
-  logBacay(client, userId, bet, result, finalProfit, balance);
+  logThreeCard(client, userId, bet, result, finalProfit, balance);
 }
 const {
   startGame,
   revealPlayer,
   resolveGame,
   getPayout,
-} = require("../../games/bacay/engine");
-const { buildEmbed, buildButtons, fmt } = require("../../games/bacay/ui");
-const { recordBacayGame } = require("../../features/bacayStats");
+} = require("../../games/three-card/engine");
+const { buildEmbed, buildButtons, fmt } = require("../../games/three-card/ui");
+const { recordThreeCardGame } = require("../../features/threeCardStats");
 
 // Memory store for active games
 const games = new Map(); // gameId -> { guildId, userId, state, timer }
@@ -53,12 +53,12 @@ function isAdmin(member) {
 }
 
 const slashData = new SlashCommandBuilder()
-  .setName("bacay")
-  .setDescription("Chơi Ba Cào / 3 Cây (Hệ 10 điểm, Nhất ăn tất)")
+  .setName("three-card")
+  .setDescription("Play Three Card Game (Scratch Card) - High Score Wins")
   .addIntegerOption((opt) =>
     opt
       .setName("bet")
-      .setDescription("Số tiền đặt cược")
+      .setDescription("Bet Amount")
       .setRequired(true)
       .setMinValue(1)
   );
@@ -185,7 +185,7 @@ async function onButton(interaction) {
       }
 
       // Record Stats
-      await recordBacayGame(guildId, userId, state.result, state.bet, pay);
+      await recordThreeCardGame(guildId, userId, state.result, state.bet, pay);
 
       // Log DB + Discord
       await logGameEnd(
@@ -211,56 +211,6 @@ async function onButton(interaction) {
       embeds: [buildEmbed({ userId, state, balance })],
       components: buildButtons(gameId, state), // Hiện nút Retry / Exit
     });
-    return;
-  }
-
-  // RETRY
-  if (action === "retry") {
-    // Logic: Start new game with SAME bet.
-    // Check balance again inside run() equivalent logic.
-    // Reuse start logic.
-    // Tuy nhiên, để đơn giản, ta gọi lại hàm run() giả lập?
-    // Không, run() nhận interaction slash command. Ở đây là ButtonInteraction.
-    // Ta tách logic start ra hàm riêng hoặc handle tại đây.
-
-    // Re-check balance
-    let balance = await getBalance(guildId, userId, admin);
-    if (balance < state.bet) {
-      return interaction.followUp({
-        content: "❌ Không đủ tiền để chơi lại!",
-        ephemeral: true,
-      });
-    }
-
-    // Deduct
-    balance = await addBalance(guildId, userId, -state.bet, admin);
-
-    // New Game
-    const newState = startGame(state.bet);
-    const newGameId = makeId();
-
-    games.set(newGameId, { guildId, userId, state: newState });
-
-    // Edit message thành ván mới
-    await interaction.editReply({
-      embeds: [buildEmbed({ userId, state: newState, balance })],
-      components: buildButtons(newGameId, newState),
-    });
-
-    // Timeout cleanup
-    const timer = setTimeout(() => {
-      games.delete(newGameId);
-    }, 60000);
-    games.get(newGameId).timer = timer;
-
-    return;
-  }
-
-  // EXIT
-  if (action === "exit") {
-    await interaction.deleteReply(); // Xóa luôn message hoặc disable nút?
-    // User request: "Thoát" => "bacay_exit".
-    // Usually deleting the message is cleanest for "Exit".
     return;
   }
 }

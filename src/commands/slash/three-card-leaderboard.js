@@ -1,11 +1,11 @@
-// src/commands/slash/bacay-top.js
+// src/commands/slash/three-card-leaderboard.js
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
-const { getTopWinners } = require("../../features/bacayStats");
-const { fmt } = require("../../games/bacay/ui");
+const { getTopWinners } = require("../../features/threeCardStats");
+const { fmt } = require("../../games/three-card/ui");
 
 const slashData = new SlashCommandBuilder()
-  .setName("bacay-top")
-  .setDescription("Xem bảng xếp hạng thắng Ba Cào");
+  .setName("three-card-leaderboard")
+  .setDescription("View Three Card Leaderboard (Net Profit)");
 
 async function run(interaction) {
   await interaction.deferReply();

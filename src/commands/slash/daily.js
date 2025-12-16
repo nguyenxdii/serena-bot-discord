@@ -5,7 +5,7 @@ const {
   PermissionFlagsBits,
 } = require("discord.js");
 const { claimDaily } = require("../../features/wallet");
-const { fmt } = require("../../games/bacay/ui"); // Reusing fmt helper
+const { fmt } = require("../../games/three-card/ui"); // Reusing fmt helper
 const { logTransaction } = require("../../features/transactionLog");
 const { logDaily } = require("../../utils/discordLogger");
 

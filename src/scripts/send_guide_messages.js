@@ -133,9 +133,9 @@ client.once("ready", async () => {
         {
           name: "🎲 Ba Cào (3 Cây)",
           value:
-            "`/bacay bet:<tiền>` : Bắt đầu ván mới\n" +
-            "`/bacay-help` : Hướng dẫn luật chơi Ba Cào\n" +
-            "`/bacay-stats` : Xem thống kê thắng/thua của bạn",
+            "`/three-card bet:<tiền>` : Bắt đầu ván mới\n" +
+            "`/three-card-help` : Hướng dẫn luật chơi Ba Cào\n" +
+            "`/three-card-stats` : Xem thống kê thắng/thua của bạn",
           inline: false,
         }
       );

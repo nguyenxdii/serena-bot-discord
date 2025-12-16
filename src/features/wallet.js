@@ -42,6 +42,12 @@ async function ensureUser(guildId, userId, isAdmin) {
         weeklyCounter: 0,
         lastDailyAt: new Date(0), // 1970
         cooldowns: {},
+        // Word Chain / ELO Stats
+        elo: 1000,
+        gamesPlayed: 0,
+        wins: 0,
+        losses: 0,
+        provisionalGames: 0,
         // Transfer Stats
         transferStats: {
           tipCountToday: 0,

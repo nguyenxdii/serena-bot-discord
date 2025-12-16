@@ -1,15 +1,15 @@
-// src/commands/slash/bacay-help.js
+// src/commands/slash/three-card-help.js
 const { SlashCommandBuilder, EmbedBuilder } = require("discord.js");
 
 const slashData = new SlashCommandBuilder()
-  .setName("bacay-help")
-  .setDescription("Hướng dẫn cách chơi Ba Cào");
+  .setName("three-card-help")
+  .setDescription("Three Card Game Instructions");
 
 async function run(interaction) {
   const e = new EmbedBuilder()
-    .setTitle("🎲 HƯỚNG DẪN CHƠI BA CÀO (3 CÂY)")
+    .setTitle("🎲 HOW TO PLAY THREE CARD (SCRATCH)")
     .setColor("Gold")
-    .setDescription("Luật chơi Ba Cào (Ba Cây) cơ bản.")
+    .setDescription("Basic Rules of Three Card (Ba Cay).")
     .addFields(
       {
         name: "🔢 Giá trị bài",
@@ -30,7 +30,7 @@ async function run(interaction) {
         inline: false,
       }
     )
-    .setFooter({ text: "Lệnh: /bacay bet:<số tiền>" });
+    .setFooter({ text: "Lệnh: /three-card bet:<số tiền>" });
 
   return interaction.reply({ embeds: [e], ephemeral: true });
 }

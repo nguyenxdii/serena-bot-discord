@@ -4,7 +4,7 @@ const {
   PermissionFlagsBits,
 } = require("discord.js");
 const { getDb } = require("../../db/mongo");
-const { fmt } = require("../../games/bacay/ui");
+const { fmt } = require("../../games/three-card/ui");
 
 const slashData = new SlashCommandBuilder()
   .setName("admin-history")
@@ -59,7 +59,7 @@ async function run(interaction) {
       amountStr = `+${amountStr}`;
     } else if (
       l.type === "BLACKJACK" ||
-      l.type === "BACAY" ||
+      l.type === "THREE_CARD" ||
       l.type === "GAME"
     ) {
       // Payout log.

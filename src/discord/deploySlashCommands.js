@@ -17,10 +17,20 @@ const { addSlash, removeSlash } = require("../commands/slash/admin-money");
 const { slashData: helpSlash } = require("../commands/slash/blackjack-help");
 const { slashData: statsSlash } = require("../commands/slash/blackjack-stats");
 
-const { slashData: bacaySlash } = require("../commands/slash/bacay");
-const { slashData: bacayHelp } = require("../commands/slash/bacay-help");
-const { slashData: bacayStats } = require("../commands/slash/bacay-stats");
-const { slashData: bacayTop } = require("../commands/slash/bacay-top");
+const { slashData: threeCardSlash } = require("../commands/slash/three-card");
+const {
+  slashData: threeCardHelp,
+} = require("../commands/slash/three-card-help");
+const {
+  slashData: threeCardStats,
+} = require("../commands/slash/three-card-stats");
+const {
+  slashData: threeCardTop,
+} = require("../commands/slash/three-card-leaderboard");
+const { slashData: wordchainSlash } = require("../commands/slash/wordchain");
+const {
+  slashData: wordchainHelpSlash,
+} = require("../commands/slash/wordchain-help");
 
 async function deploySlashCommands() {
   if (!DISCORD_TOKEN) return;
@@ -45,10 +55,12 @@ async function deploySlashCommands() {
     removeSlash.toJSON(),
     helpSlash.toJSON(),
     statsSlash.toJSON(),
-    bacaySlash.toJSON(),
-    bacayHelp.toJSON(),
-    bacayStats.toJSON(),
-    bacayTop.toJSON(),
+    threeCardSlash.toJSON(),
+    threeCardHelp.toJSON(),
+    threeCardStats.toJSON(),
+    threeCardTop.toJSON(),
+    wordchainSlash.toJSON(),
+    wordchainHelpSlash.toJSON(),
   ];
 
   const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);

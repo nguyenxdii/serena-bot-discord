@@ -1,7 +1,7 @@
 const { SlashCommandBuilder, PermissionFlagsBits } = require("discord.js");
 const { addBalance } = require("../../features/wallet");
 const { logTransaction } = require("../../features/transactionLog");
-const { fmt } = require("../../games/bacay/ui");
+const { fmt } = require("../../games/three-card/ui");
 
 const addSlash = new SlashCommandBuilder()
   .setName("admin-addcoin")

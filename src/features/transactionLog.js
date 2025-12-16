@@ -9,7 +9,7 @@ function col() {
 /**
  * Log a transaction to DB
  * @param {object} data
- * @param {string} data.type "TIP"|"PAY"|"DAILY"|"BLACKJACK"|"BACAY"|"ADMIN_ADD"|"ADMIN_REMOVE"
+ * @param {string} data.type "TIP"|"PAY"|"DAILY"|"BLACKJACK"|"THREE_CARD"|"ADMIN_ADD"|"ADMIN_REMOVE"
  * @param {string} data.guildId
  * @param {string} data.userId
  * @param {number} data.amount (Change in balance)
