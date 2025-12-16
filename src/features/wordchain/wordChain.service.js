@@ -90,7 +90,7 @@ async function acceptMatch(matchId, acceptorId) {
   const firstPlayerId = Math.random() < 0.5 ? match.playerAId : match.playerBId;
 
   await db.collection(COLLECTION_NAME).updateOne(
-    { _id: matchId },
+    { _id: new ObjectId(matchId) },
     {
       $set: {
         status: "ACTIVE",
@@ -182,7 +182,7 @@ async function submitWord(matchId, userId, word) {
   const newUsedWords = [...match.usedWords, validation.normalized_word]; // normalized from Gemini
 
   await db.collection(COLLECTION_NAME).updateOne(
-    { _id: matchId },
+    { _id: new ObjectId(matchId) },
     {
       $set: {
         lastWord: validation.normalized_word,
