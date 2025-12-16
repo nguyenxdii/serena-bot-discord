@@ -1,15 +1,34 @@
-// src/utils/channelCheck.js
 const { PermissionFlagsBits } = require("discord.js");
-
-const ALLOWED_CHANNELS = [
-  "1450065466772029481", // Main Game Channel (Quầy 1)
-  "1450065511231520778", // Word Chain Channel (Formerly Table 2)
-  // "1450065534312779776", // Quầy 3 (Removed)
-  // "1450067312160805047", // Quầy 4 (Removed)
-];
 
 const DAILY_CHANNEL_ID = "1450065824210489395";
 const WORDCHAIN_CHANNEL_ID = "1450065511231520778";
+const CARD_GAME_CHANNEL_ID = "1450065466772029481";
+
+// Allowed for Wallet/Economy commands (shared)
+const GAME_ZONES = [WORDCHAIN_CHANNEL_ID, CARD_GAME_CHANNEL_ID];
+
+// Command Category Mapping
+const CMD_RULES = {
+  daily: [DAILY_CHANNEL_ID],
+
+  // Word Chain
+  wordchain: [WORDCHAIN_CHANNEL_ID],
+  "wordchain-help": [WORDCHAIN_CHANNEL_ID],
+
+  // Card Games
+  blackjack: [CARD_GAME_CHANNEL_ID],
+  "blackjack-help": [CARD_GAME_CHANNEL_ID],
+  "blackjack-stats": [CARD_GAME_CHANNEL_ID],
+  "three-card": [CARD_GAME_CHANNEL_ID],
+  "three-card-help": [CARD_GAME_CHANNEL_ID],
+  "three-card-stats": [CARD_GAME_CHANNEL_ID],
+  "three-card-leaderboard": [CARD_GAME_CHANNEL_ID],
+
+  // Economy (Allowed in all GAME ZONES)
+  wallet: GAME_ZONES,
+  pay: GAME_ZONES,
+  tip: GAME_ZONES,
+};
 
 // Admin bypass
 function isAdmin(member) {
@@ -17,57 +36,86 @@ function isAdmin(member) {
 }
 
 async function checkChannel(interaction) {
-  if (isAdmin(interaction.member)) return true;
+  // if (isAdmin(interaction.member)) return true; // Optional: Enforce for admins too for testing? strict user req.
 
   const channelId = interaction.channelId;
   const cmd = interaction.commandName;
 
-  // 1. Kênh Điểm Danh: Chỉ cho phép /daily
-  if (channelId === DAILY_CHANNEL_ID) {
-    if (cmd === "daily") return true;
+  // 1. Logic cho Kênh
+  // Nếu đang ở Kênh Nối Từ -> Chỉ được dùng lệnh Nối Từ
+  if (channelId === WORDCHAIN_CHANNEL_ID) {
+    if (
+      CMD_RULES["wordchain"].includes(channelId) &&
+      cmd.startsWith("wordchain")
+    )
+      return true;
+    // Allow Economy commands too? User: "ở kênh nào thì dùng các lệnh liên quan của kênh đó"
+    // Usually wallet check is needed.
+    if (
+      CMD_RULES["wallet"].includes(channelId) &&
+      ["wallet", "pay", "tip"].includes(cmd)
+    )
+      return true;
 
-    await interaction.reply({
-      content: `⚠️ Kênh này chỉ dùng để điểm danh (\`/daily\`). Vui lòng qua khu vực Game Zone!`,
-      ephemeral: true,
-    });
+    // Reject others
+    await warnSpecific(
+      interaction,
+      "Kênh này chỉ dành cho **Nối Từ** (/wordchain)!"
+    );
     return false;
   }
 
-  // 2. Lệnh Daily: CHỈ cho phép ở kênh Daily
-  if (cmd === "daily") {
-    if (channelId === DAILY_CHANNEL_ID) return true;
+  // Nếu đang ở Kênh Đánh Bài -> Chỉ được dùng lệnh Đánh Bài
+  if (channelId === CARD_GAME_CHANNEL_ID) {
+    const isCardCmd =
+      CMD_RULES["blackjack"].includes(channelId) ||
+      CMD_RULES["three-card"].includes(channelId); // simplified check handled below
+    const allowed = ["blackjack", "three-card", "wallet", "pay", "tip"];
+    if (allowed.some((p) => cmd.startsWith(p))) return true;
 
-    await warnWrongChannel(interaction, [DAILY_CHANNEL_ID]);
+    await warnSpecific(
+      interaction,
+      "Kênh này chỉ dành cho **Đánh Bài** (Blackjack, Three Card)!"
+    );
     return false;
   }
 
-  // 3. Lệnh Wordchain: CHỈ cho phép ở kênh Word Chain
-  if (cmd === "wordchain") {
-    if (channelId === WORDCHAIN_CHANNEL_ID) return true;
+  // 2. Logic cho Lệnh (Nếu chat ở kênh lạ)
+  const allowedChannels = CMD_RULES[cmd];
+  if (allowedChannels) {
+    if (allowedChannels.includes(channelId)) return true;
 
-    await warnWrongChannel(interaction, [WORDCHAIN_CHANNEL_ID]);
+    // Wrong Channel
+    await warnWrongChannel(interaction, allowedChannels);
     return false;
   }
 
-  // 4. Các lệnh Game khác (Blackjack, ThreeCard, Wallet...)
-  // Chỉ cho phép ở các kênh trong ALLOWED_CHANNELS
-  if (ALLOWED_CHANNELS.includes(channelId)) return true;
-
-  // 5. Sai kênh -> Báo lỗi
-  await warnWrongChannel(interaction, ALLOWED_CHANNELS);
-  return false;
+  // Lệnh admin/khác không trong list -> Allow (hoặc Block strict)
+  // User req: "admin-*" -> Usually admin commands are ephemeral/anywhere or restricted by permissions.
+  // We allow logic to pass if not defined in CMD_RULES.
+  return true;
 }
 
-async function warnWrongChannel(interaction, allowedIds) {
-  const channelList = allowedIds.map((id) => `<#${id}>`).join(", ");
+async function warnSpecific(interaction, msg) {
   try {
-    const content = `⚠️ **Vui lòng qua đúng kênh quy định:**\n👉 ${channelList}`;
     if (interaction.deferred || interaction.replied) {
-      await interaction.followUp({ content, ephemeral: true });
+      await interaction.followUp({ content: `⚠️ ${msg}`, ephemeral: true });
     } else {
-      await interaction.reply({ content, ephemeral: true });
+      await interaction.reply({ content: `⚠️ ${msg}`, ephemeral: true });
     }
   } catch (e) {}
 }
 
-module.exports = { checkChannel, ALLOWED_CHANNELS, DAILY_CHANNEL_ID };
+async function warnWrongChannel(interaction, allowedIds) {
+  const channelList = allowedIds.map((id) => `<#${id}>`).join(", ");
+  const content = `⚠️ **Sai khu vực!** Vui lòng qua: ${channelList}`;
+  await warnSpecific(interaction, content.replace("⚠️ ", ""));
+}
+
+module.exports = {
+  checkChannel,
+  DAILY_CHANNEL_ID,
+  WORDCHAIN_CHANNEL_ID,
+  CARD_GAME_CHANNEL_ID,
+  ALLOWED_CHANNELS: GAME_ZONES,
+};
