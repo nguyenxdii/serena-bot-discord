@@ -5,7 +5,11 @@ const {
   MessageFlags,
 } = require("discord.js");
 const { getDb } = require("../../db/mongo");
-const { fmt } = require("../../games/three-card/ui");
+
+// Helper function to format numbers
+function fmt(num) {
+  return num.toLocaleString("en-US");
+}
 
 const slashData = new SlashCommandBuilder()
   .setName("admin-economy")
@@ -78,7 +82,7 @@ async function run(interaction) {
   txStats.forEach((s) => {
     if (s._id === "DAILY") mintedDaily += s.totalAmount;
 
-    if (s._id === "BLACKJACK" || s._id === "THREE_CARD") {
+    if (s._id === "BLACKJACK") {
       // Calculation:
       // Payout = s.totalAmount
       // Bet = s.totalBet
@@ -91,7 +95,7 @@ async function run(interaction) {
       const payout = s.totalAmount;
       const bet = s.totalBet || 0;
 
-      // Fees are tracked separately in `fee` field for BJ/ThreeCard now?
+      // Fees are tracked separately in `fee` field for BJ now
       // Yes, I fed `fee` into log.
       feesBurned += s.totalFee;
 

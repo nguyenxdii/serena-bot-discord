@@ -5,7 +5,11 @@ const {
   MessageFlags,
 } = require("discord.js");
 const { getDb } = require("../../db/mongo");
-const { fmt } = require("../../games/three-card/ui");
+
+// Helper function to format numbers
+function fmt(num) {
+  return num.toLocaleString("en-US");
+}
 
 const slashData = new SlashCommandBuilder()
   .setName("admin-history")
@@ -58,11 +62,7 @@ async function run(interaction) {
     } else if (l.type === "DAILY") {
       direction = "☀️ DAILY";
       amountStr = `+${amountStr}`;
-    } else if (
-      l.type === "BLACKJACK" ||
-      l.type === "THREE_CARD" ||
-      l.type === "GAME"
-    ) {
+    } else if (l.type === "BLACKJACK" || l.type === "GAME") {
       // Payout log.
       // Meta has bet. Payout - Bet = Net.
       const bet = l.meta?.bet || 0;

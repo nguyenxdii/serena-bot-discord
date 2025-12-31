@@ -7,6 +7,9 @@ const { deploySlashCommands } = require("./src/discord/deploySlashCommands");
 
 const { onMessageCreate } = require("./src/features/moderation");
 const { onInteractionCreate } = require("./src/commands/router");
+const {
+  onWordChainMessage,
+} = require("./src/features/wordchain-simple/messageHandler");
 
 if (!DISCORD_TOKEN) {
   console.error("❌ Thiếu DISCORD_TOKEN trong .env hoặc Railway Variables");
@@ -28,6 +31,8 @@ client.once(Events.ClientReady, async () => {
   await deploySlashCommands(); // nếu có APPLICATION_ID + GUILD_ID
 });
 
+// Message handlers - word chain first for game, then moderation
+client.on("messageCreate", onWordChainMessage(client));
 client.on("messageCreate", onMessageCreate(client));
 client.on("interactionCreate", onInteractionCreate(client));
 

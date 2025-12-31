@@ -11,7 +11,7 @@ function initGemini() {
   }
   const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
   model = genAI.getGenerativeModel({
-    model: "gemini-2.5-flash",
+    model: "gemini-3-flash-preview",
     generationConfig: {
       responseMimeType: "application/json",
       responseSchema: {
@@ -52,8 +52,6 @@ Rules:
 2. "newWord" must NOT be in the "usedWords" list.
 3. If "lastWord" is provided (not null/empty), "newWord" MUST start with the last syllable of "lastWord".
    - Comparison should be case-insensitive.
-   - Ignore accents? NO, accents must match for standard word chain, OR soft match depending on common rules. Let's use STRICT match for the connecting syllable (chữ cái cuối cùng của từ trước = chữ cái đầu của từ sau).
-   - Actually common rule: "Last word's RELEVANT syllable". E.g. "Con gà" -> "Gà trống".
    - Match full syllable with tone.
 4. "newWord" must be found in dictionary or common usage. NO nonsense words.
 
@@ -71,10 +69,8 @@ Return JSON.
     const responseText = result.response.text();
     return JSON.parse(responseText);
   } catch (error) {
-    console.error("Gemini Error:", error);
-    // Fallback or retry?
-    // User requirement: "Gemini timeout -> retry 1 lần -> fail thì xử thua"
-    // We handle retry in the caller service (GameService) for better control.
+    console.error("Gemini Validation Error:", error);
+    // Log the actual response text if possible for debugging (not easy here since error is thrown)
     throw error;
   }
 }

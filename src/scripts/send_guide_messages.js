@@ -24,10 +24,8 @@ const CHANNELS = {
   checkin: "1450065824210489395", // 🧧︱điểm-danh
   reward: "1450065852895465574", // 🎁︱nhận-thưởng
   gaming: [
-    "1450065466772029481", // quẩy-bài-1
-    "1450065511231520778", // quẩy-bài-2
-    "1450065534312779776", // quẩy-bài-3
-    "1450067312160805047", // quẩy-bài-4
+    "1450065466772029481", // quẩy-bài-1 (Blackjack)
+    "1450065511231520778", // quẩy-bài-2 (Word Chain)
   ],
   feedback: "1450072444164378736", // feed-back
 };
@@ -75,15 +73,15 @@ client.once("ready", async () => {
         {
           name: "🧧 Phúc Lợi Hàng Ngày",
           value:
-            `<#${CHANNELS.checkin}>: Điểm danh nhận coin mỗi ngày.\n` +
+            `<#${CHANNELS.checkin}>: Điểm danh nhận coin mỗi ngày.\\n` +
             `<#${CHANNELS.reward}>: Nơi trao giải và nhận thưởng event.`,
           inline: false,
         },
         {
           name: "🎰 Sàn Đấu (Game Zone)",
           value:
-            `Các kênh: <#${CHANNELS.gaming[0]}>, <#${CHANNELS.gaming[1]}>...\n` +
-            "👉 Chỉ huy BOT và chơi game (Blackjack, Ba Cào) tại đây.",
+            `Các kênh: <#${CHANNELS.gaming[0]}>, <#${CHANNELS.gaming[1]}>...\\n` +
+            "👉 Chỉ huy BOT và chơi game (Blackjack) tại đây.",
           inline: false,
         },
         {
@@ -105,9 +103,9 @@ client.once("ready", async () => {
         {
           name: "🚫 Quy Định & Lưu Ý",
           value:
-            "• **Không spam** lệnh quá nhanh.\n" +
-            "• **Không cay** khi thua.\n" +
-            "• **Nhắn đúng kênh** quy định (Bot sẽ nhắc nhở nếu sai).\n" +
+            "• **Không spam** lệnh quá nhanh.\\n" +
+            "• **Không cay** khi thua.\\n" +
+            "• **Nhắn đúng kênh** quy định (Bot sẽ nhắc nhở nếu sai).\\n" +
             "• Game luôn có yếu tố may mắn, hãy chơi giải trí!",
           inline: false,
         },
@@ -116,26 +114,18 @@ client.once("ready", async () => {
           value:
             "`/daily` : Điểm danh tại <#" +
             CHANNELS.checkin +
-            ">\n" +
-            "`/wallet` : Xem số dư túi tiền (Riêng tư)\n" +
-            "`/tip` : Lì xì cho bạn bè (Miễn phí, chỉ cần xác nhận)\n" +
+            ">\\n" +
+            "`/wallet` : Xem số dư túi tiền (Riêng tư)\\n" +
+            "`/tip` : Lì xì cho bạn bè (Miễn phí, chỉ cần xác nhận)\\n" +
             "`/pay` : Chuyển khoản giao dịch (Phí 5%, cần xác nhận)",
           inline: false,
         },
         {
           name: "🃏 Blackjack (Xì Dách)",
           value:
-            "`/blackjack bet:<tiền>` : Bắt đầu ván mới\n" +
-            "`/blackjack-help` : Hướng dẫn luật chơi Blackjack\n" +
+            "`/blackjack bet:<tiền>` : Bắt đầu ván mới\\n" +
+            "`/blackjack-help` : Hướng dẫn luật chơi Blackjack\\n" +
             "`/blackjack-stats` : Xem thống kê thắng/thua của bạn",
-          inline: false,
-        },
-        {
-          name: "🎲 Ba Cào (3 Cây)",
-          value:
-            "`/three-card bet:<tiền>` : Bắt đầu ván mới\n" +
-            "`/three-card-help` : Hướng dẫn luật chơi Ba Cào\n" +
-            "`/three-card-stats` : Xem thống kê thắng/thua của bạn",
           inline: false,
         }
       );

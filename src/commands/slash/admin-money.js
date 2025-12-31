@@ -5,7 +5,11 @@ const {
 } = require("discord.js");
 const { addBalance } = require("../../features/wallet");
 const { logTransaction } = require("../../features/transactionLog");
-const { fmt } = require("../../games/three-card/ui");
+
+// Helper function to format numbers
+function fmt(num) {
+  return num.toLocaleString("en-US");
+}
 
 const addSlash = new SlashCommandBuilder()
   .setName("admin-addcoin")

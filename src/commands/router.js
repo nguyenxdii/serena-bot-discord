@@ -7,12 +7,6 @@ const bj = require("./slash/blackjack");
 const bjHelp = require("./slash/blackjack-help");
 const bjStats = require("./slash/blackjack-stats");
 
-// Three Card Modules
-const threeCard = require("./slash/three-card");
-const threeCardHelp = require("./slash/three-card-help");
-const threeCardStats = require("./slash/three-card-stats");
-const threeCardTop = require("./slash/three-card-leaderboard");
-
 const wallet = require("./slash/wallet");
 const daily = require("./slash/daily");
 const tip = require("./slash/tip");
@@ -20,6 +14,7 @@ const pay = require("./slash/pay");
 
 const wordchain = require("./slash/wordchain");
 const wordchainHelp = require("./slash/wordchain-help");
+const wordchainSimple = require("./slash/wordchain-simple");
 
 // Admin Modules
 const adminEco = require("./slash/admin-economy");
@@ -37,17 +32,13 @@ const COMMANDS = {
   pay: pay.run,
   wordchain: wordchain.run,
   "wordchain-help": wordchainHelp.run,
+  start: wordchainSimple.run,
 
   "admin-economy": adminEco.run,
   "admin-user": adminUser.run,
   "admin-history": adminHist.run,
   "admin-addcoin": adminMoney.runAdd,
   "admin-removecoin": adminMoney.runRemove,
-
-  "three-card": threeCard.run,
-  "three-card-help": threeCardHelp.run,
-  "three-card-stats": threeCardStats.run,
-  "three-card-leaderboard": threeCardTop.run,
 };
 
 const GAME_COMMANDS = Object.keys(COMMANDS);
@@ -72,10 +63,6 @@ function onInteractionCreate(client) {
 
         if (id.startsWith("bj:")) {
           await bj.onButton(interaction);
-        }
-
-        if (id.startsWith("tc:")) {
-          await threeCard.onButton(interaction);
         }
 
         if (id.startsWith("wc:")) {

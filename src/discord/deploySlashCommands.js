@@ -17,20 +17,11 @@ const { addSlash, removeSlash } = require("../commands/slash/admin-money");
 const { slashData: helpSlash } = require("../commands/slash/blackjack-help");
 const { slashData: statsSlash } = require("../commands/slash/blackjack-stats");
 
-const { slashData: threeCardSlash } = require("../commands/slash/three-card");
-const {
-  slashData: threeCardHelp,
-} = require("../commands/slash/three-card-help");
-const {
-  slashData: threeCardStats,
-} = require("../commands/slash/three-card-stats");
-const {
-  slashData: threeCardTop,
-} = require("../commands/slash/three-card-leaderboard");
 const { slashData: wordchainSlash } = require("../commands/slash/wordchain");
 const {
   slashData: wordchainHelpSlash,
 } = require("../commands/slash/wordchain-help");
+const { slashData: startSlash } = require("../commands/slash/wordchain-simple");
 
 async function deploySlashCommands() {
   if (!DISCORD_TOKEN) return;
@@ -55,12 +46,10 @@ async function deploySlashCommands() {
     removeSlash.toJSON(),
     helpSlash.toJSON(),
     statsSlash.toJSON(),
-    threeCardSlash.toJSON(),
-    threeCardHelp.toJSON(),
-    threeCardStats.toJSON(),
-    threeCardTop.toJSON(),
+
     wordchainSlash.toJSON(),
     wordchainHelpSlash.toJSON(),
+    startSlash.toJSON(),
   ];
 
   const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);

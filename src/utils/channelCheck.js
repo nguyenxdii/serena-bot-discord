@@ -19,10 +19,6 @@ const CMD_RULES = {
   blackjack: [CARD_GAME_CHANNEL_ID],
   "blackjack-help": [CARD_GAME_CHANNEL_ID],
   "blackjack-stats": [CARD_GAME_CHANNEL_ID],
-  "three-card": [CARD_GAME_CHANNEL_ID],
-  "three-card-help": [CARD_GAME_CHANNEL_ID],
-  "three-card-stats": [CARD_GAME_CHANNEL_ID],
-  "three-card-leaderboard": [CARD_GAME_CHANNEL_ID],
 
   // Economy (Allowed in all GAME ZONES)
   wallet: GAME_ZONES,
@@ -44,39 +40,33 @@ async function checkChannel(interaction) {
   // 1. Logic cho Kênh
   // Nếu đang ở Kênh Nối Từ -> Chỉ được dùng lệnh Nối Từ
   if (channelId === WORDCHAIN_CHANNEL_ID) {
-    if (
-      CMD_RULES["wordchain"].includes(channelId) &&
-      cmd.startsWith("wordchain")
-    )
+    // Allow wordchain commands and /start
+    if (cmd.startsWith("wordchain") || cmd === "start") {
       return true;
-    // Allow Economy commands too? User: "ở kênh nào thì dùng các lệnh liên quan của kênh đó"
-    // Usually wallet check is needed.
+    }
+
+    // Allow Economy commands too
     if (
       CMD_RULES["wallet"].includes(channelId) &&
       ["wallet", "pay", "tip"].includes(cmd)
-    )
+    ) {
       return true;
+    }
 
     // Reject others
     await warnSpecific(
       interaction,
-      "Kênh này chỉ dành cho **Nối Từ** (/wordchain)!"
+      "Kênh này chỉ dành cho **Nối Từ** (/wordchain hoặc /start)!"
     );
     return false;
   }
 
   // Nếu đang ở Kênh Đánh Bài -> Chỉ được dùng lệnh Đánh Bài
   if (channelId === CARD_GAME_CHANNEL_ID) {
-    const isCardCmd =
-      CMD_RULES["blackjack"].includes(channelId) ||
-      CMD_RULES["three-card"].includes(channelId); // simplified check handled below
-    const allowed = ["blackjack", "three-card", "wallet", "pay", "tip"];
+    const allowed = ["blackjack", "wallet", "pay", "tip"];
     if (allowed.some((p) => cmd.startsWith(p))) return true;
 
-    await warnSpecific(
-      interaction,
-      "Kênh này chỉ dành cho **Đánh Bài** (Blackjack, Three Card)!"
-    );
+    await warnSpecific(interaction, "Kênh này chỉ dành cho **Đánh Bài**!");
     return false;
   }
 

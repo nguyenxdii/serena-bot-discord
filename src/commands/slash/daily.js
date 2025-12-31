@@ -5,9 +5,13 @@ const {
   PermissionFlagsBits,
 } = require("discord.js");
 const { claimDaily } = require("../../features/wallet");
-const { fmt } = require("../../games/three-card/ui"); // Reusing fmt helper
 const { logTransaction } = require("../../features/transactionLog");
 const { logDaily } = require("../../utils/discordLogger");
+
+// Helper function to format numbers
+function fmt(num) {
+  return num.toLocaleString("en-US");
+}
 
 const slashData = new SlashCommandBuilder()
   .setName("daily")

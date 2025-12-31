@@ -5,7 +5,11 @@ const {
   MessageFlags,
 } = require("discord.js");
 const { getDb } = require("../../db/mongo");
-const { fmt } = require("../../games/three-card/ui");
+
+// Helper function to format numbers
+function fmt(num) {
+  return num.toLocaleString("en-US");
+}
 
 const slashData = new SlashCommandBuilder()
   .setName("admin-user")
@@ -32,13 +36,11 @@ async function run(interaction) {
 
   const usersC = db.collection("users");
   const bjStatsC = db.collection("bj_stats");
-  const threeCardStatsC = db.collection("three_card_stats");
 
   // Parallel Fetch
-  const [userData, bjData, threeCardData] = await Promise.all([
+  const [userData, bjData] = await Promise.all([
     usersC.findOne({ guildId, userId: target.id }),
     bjStatsC.findOne({ guildId, userId: target.id }),
-    threeCardStatsC.findOne({ guildId, userId: target.id }),
   ]);
 
   if (!userData) {
@@ -56,13 +58,12 @@ async function run(interaction) {
 
   // Games
   const bj = bjData || { played: 0, win: 0, lose: 0, net: 0 };
-  const threeCard = threeCardData || { played: 0, win: 0, lose: 0, net: 0 };
 
-  const totalPlayed = bj.played + threeCard.played;
-  const totalNet = bj.net + threeCard.net;
+  const totalPlayed = bj.played;
+  const totalNet = bj.net;
 
   // Win Rate
-  const totalWin = (bj.win || 0) + (threeCard.win || 0);
+  const totalWin = bj.win || 0;
   const winRate = totalPlayed
     ? ((totalWin / totalPlayed) * 100).toFixed(1)
     : "0.0";
@@ -87,15 +88,6 @@ async function run(interaction) {
           `Played: ${bj.played}\n` +
           `Win/Lose: ${bj.win}/${bj.lose}\n` +
           `Net: ${fmt(bj.net)}`,
-        inline: true,
-      },
-      {
-        name: "🎲 Ba Cào",
-        value:
-          `**• Three Card:**\n` +
-          `Played: ${threeCard.played}\n` +
-          `Win/Lose: ${threeCard.win}/${threeCard.lose}\n` +
-          `Net: ${fmt(threeCard.net)}`,
         inline: true,
       },
       { name: "📈 Win Rate", value: `${winRate}%`, inline: true },
