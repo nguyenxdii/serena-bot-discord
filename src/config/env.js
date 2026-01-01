@@ -11,4 +11,8 @@ module.exports = {
   GUILD_ID,
   MONGODB_URI,
   GEMINI_API_KEY,
+
+  // Webhooks
+  WEBHOOK_BLACKJACK: process.env.WEBHOOK_BLACKJACK,
+  WEBHOOK_WORDCHAIN: process.env.WEBHOOK_WORDCHAIN,
 };

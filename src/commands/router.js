@@ -12,9 +12,11 @@ const daily = require("./slash/daily");
 const tip = require("./slash/tip");
 const pay = require("./slash/pay");
 
-const wordchain = require("./slash/wordchain");
-const wordchainHelp = require("./slash/wordchain-help");
-const wordchainSimple = require("./slash/wordchain-simple");
+// const wordchain = require("./slash/wordchain");
+// const wordchainHelp = require("./slash/wordchain-help");
+
+// New wordchain commands
+const wordchainSurrender = require("./slash/wordchain-surrender");
 
 // Admin Modules
 const adminEco = require("./slash/admin-economy");
@@ -30,9 +32,11 @@ const COMMANDS = {
   daily: daily.run,
   tip: tip.run,
   pay: pay.run,
-  wordchain: wordchain.run,
-  "wordchain-help": wordchainHelp.run,
-  start: wordchainSimple.run,
+  // wordchain: wordchain.run,
+  // "wordchain-help": wordchainHelp.run,
+
+  // New wordchain commands
+  "wordchain-surrender": wordchainSurrender.run,
 
   "admin-economy": adminEco.run,
   "admin-user": adminUser.run,
@@ -65,17 +69,17 @@ function onInteractionCreate(client) {
           await bj.onButton(interaction);
         }
 
-        if (id.startsWith("wc:")) {
-          await wordchain.onInteraction(interaction);
-        }
+        // if (id.startsWith("wc:")) {
+        //   await wordchain.onInteraction(interaction);
+        // }
       }
 
       // MODALS
       if (interaction.isModalSubmit()) {
         const id = interaction.customId;
-        if (id.startsWith("wc:")) {
-          await wordchain.onInteraction(interaction);
-        }
+        // if (id.startsWith("wc:")) {
+        //   await wordchain.onInteraction(interaction);
+        // }
       }
     } catch (e) {
       console.error("Interaction Routing Error:", e);

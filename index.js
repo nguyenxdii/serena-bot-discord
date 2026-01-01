@@ -29,6 +29,27 @@ client.once(Events.ClientReady, async () => {
 
   await connectMongo(); // nếu có MONGODB_URI
   await deploySlashCommands(); // nếu có APPLICATION_ID + GUILD_ID
+
+  // Auto-start word chain game
+  try {
+    const {
+      startGame,
+    } = require("./src/features/wordchain-simple/game.service");
+    const { sendWebhook } = require("./src/utils/webhook.service");
+
+    const gameState = startGame(client.user.id, client.user.username);
+
+    // Send auto-start message via webhook
+    await sendWebhook("wordchain", {
+      content: `🔄 **Ván mới!** Từ mở màn: **${gameState.currentWord}**`,
+    });
+
+    console.log(
+      `🎮 Word chain game auto-started with word: ${gameState.currentWord}`
+    );
+  } catch (error) {
+    console.error("❌ Failed to auto-start word chain game:", error);
+  }
 });
 
 // Message handlers - word chain first for game, then moderation

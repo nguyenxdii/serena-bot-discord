@@ -10,6 +10,7 @@ const OWNER_ID = "875358286487097395";
 
 const MUSIC_REQUEST_CHANNEL_ID = "1389843995135315979";
 const GENERAL_CHANNEL_ID = "1389842864594227270";
+const WORDCHAIN_CHANNEL_ID = "1450065511231520778"; // Game channel - no moderation
 
 function normalize(text) {
   return text
@@ -184,6 +185,11 @@ function onMessageCreate(client) {
       if (!content) return;
 
       const { DAILY_CHANNEL_ID } = require("../utils/channelCheck");
+
+      // Bypass moderation for word chain game channel
+      if (message.channel.id === WORDCHAIN_CHANNEL_ID) {
+        return; // Allow all messages in word chain channel
+      }
 
       // ... (existing music request logic) ...
 

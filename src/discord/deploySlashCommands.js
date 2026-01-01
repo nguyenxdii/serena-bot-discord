@@ -17,11 +17,15 @@ const { addSlash, removeSlash } = require("../commands/slash/admin-money");
 const { slashData: helpSlash } = require("../commands/slash/blackjack-help");
 const { slashData: statsSlash } = require("../commands/slash/blackjack-stats");
 
-const { slashData: wordchainSlash } = require("../commands/slash/wordchain");
+// const { slashData: wordchainSlash } = require("../commands/slash/wordchain");
+// const {
+//   slashData: wordchainHelpSlash,
+// } = require("../commands/slash/wordchain-help");
+
+// New wordchain commands
 const {
-  slashData: wordchainHelpSlash,
-} = require("../commands/slash/wordchain-help");
-const { slashData: startSlash } = require("../commands/slash/wordchain-simple");
+  slashData: wordchainSurrenderSlash,
+} = require("../commands/slash/wordchain-surrender");
 
 async function deploySlashCommands() {
   if (!DISCORD_TOKEN) return;
@@ -47,9 +51,11 @@ async function deploySlashCommands() {
     helpSlash.toJSON(),
     statsSlash.toJSON(),
 
-    wordchainSlash.toJSON(),
-    wordchainHelpSlash.toJSON(),
-    startSlash.toJSON(),
+    // wordchainSlash.toJSON(),
+    // wordchainHelpSlash.toJSON(),
+
+    // New wordchain commands
+    wordchainSurrenderSlash.toJSON(),
   ];
 
   const rest = new REST({ version: "10" }).setToken(DISCORD_TOKEN);

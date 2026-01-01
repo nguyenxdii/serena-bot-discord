@@ -1,28 +1,16 @@
 // src/scripts/send_guide_messages.js
-const fs = require("fs");
-const path = require("path");
-
-function log(msg) {
-  console.log(msg);
-  fs.appendFileSync("debug_guide.log", msg + "\n");
-}
-
 require("dotenv").config();
-log("🚀 Script started...");
+const path = require("path");
 const {
-  Client,
-  GatewayIntentBits,
+  WebhookClient,
   EmbedBuilder,
   AttachmentBuilder,
 } = require("discord.js");
-const { DISCORD_TOKEN } = require("../config/env");
 
-const TARGET_CHANNEL_ID = "1450073214620405903"; // 🎲｜luật-vui-chơi
+const WEBHOOK_URL = process.env.WEBHOOK_LAW;
 
 const CHANNELS = {
-  event: "1450065791860080744", // 📢︱thông-báo-event
   checkin: "1450065824210489395", // 🧧︱điểm-danh
-  reward: "1450065852895465574", // 🎁︱nhận-thưởng
   gaming: [
     "1450065466772029481", // quẩy-bài-1 (Blackjack)
     "1450065511231520778", // quẩy-bài-2 (Word Chain)
@@ -30,21 +18,13 @@ const CHANNELS = {
   feedback: "1450072444164378736", // feed-back
 };
 
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds],
-});
+// Helper function to wait
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-client.once("ready", async () => {
-  console.log(`Logged in as ${client.user.tag}`);
-
+async function sendGuides() {
   try {
-    const channel = await client.channels.fetch(TARGET_CHANNEL_ID);
-    if (!channel) {
-      console.error("❌ Không tìm thấy kênh luật!");
-      process.exit(1);
-    }
-
-    console.log(`✅ Found channel: ${channel.name}`);
+    console.log("🚀 Connecting to webhook...");
+    const webhook = new WebhookClient({ url: WEBHOOK_URL });
 
     // --- SETUP ASSETS ---
     const banner1Path = path.join(__dirname, "../assets/banner 1.png");
@@ -57,99 +37,102 @@ client.once("ready", async () => {
       name: "banner2.png",
     });
 
-    // --- MESSAGE 1: BẢN ĐỒ KÊNH + BANNER 2 ---
-    const embedMap = new EmbedBuilder()
-      .setTitle('🗺️ BẢN ĐỒ "TỔ DÂN PHỐ" GIẢI TRÍ')
-      .setDescription(
-        "Chào mừng đến với Khu Vui Chơi! Dưới đây là hướng dẫn các khu vực:"
-      )
-      .setColor("Gold")
-      .addFields(
-        {
-          name: "📢 Thông Tin & Sự Kiện",
-          value: `<#${CHANNELS.event}>: Cập nhật các event hot, đua top nhận quà.`,
-          inline: false,
-        },
-        {
-          name: "🧧 Phúc Lợi Hàng Ngày",
-          value:
-            `<#${CHANNELS.checkin}>: Điểm danh nhận coin mỗi ngày.\\n` +
-            `<#${CHANNELS.reward}>: Nơi trao giải và nhận thưởng event.`,
-          inline: false,
-        },
-        {
-          name: "🎰 Sàn Đấu (Game Zone)",
-          value:
-            `Các kênh: <#${CHANNELS.gaming[0]}>, <#${CHANNELS.gaming[1]}>...\\n` +
-            "👉 Chỉ huy BOT và chơi game (Blackjack) tại đây.",
-          inline: false,
-        },
-        {
-          name: "📬 Góp Ý",
-          value: `<#${CHANNELS.feedback}>: Báo lỗi bot hoặc đóng góp ý tưởng hay.`,
-          inline: false,
-        }
-      )
-      .setFooter({ text: "Chúc các bạn chơi vui vẻ và văn minh!" });
+    // === STEP 1: BANNER 2 (ẢNH) ===
+    console.log("📨 [1/4] Sending Banner 2...");
+    await webhook.send({
+      files: [banner2File],
+      username: "Helper",
+    });
 
-    // --- MESSAGE 2: HƯỚNG DẪN LỆNH + BANNER 1 ---
-    const embedCmd = new EmbedBuilder()
-      .setTitle("📜 LUẬT CHƠI & CÂU LỆNH CƠ BẢN")
-      .setColor("Blue")
-      .setDescription(
-        "Để đảm bảo trải nghiệm tốt nhất, vui lòng tuân thủ quy định và sử dụng đúng lệnh."
-      )
+    await wait(1500);
+
+    // === STEP 2: BẢN ĐỒ (TEXT) ===
+    console.log("📨 [2/4] Sending Map Embed...");
+    const embedMap = new EmbedBuilder()
+      .setTitle("# 🗺️ BẢN ĐỒ KHU VUI CHƠI")
+      .setDescription("### Chào mừng bạn đến với **Tổ Dân Phố Giải Trí**! 🎉")
+      .setColor("#FFD700")
       .addFields(
         {
-          name: "🚫 Quy Định & Lưu Ý",
-          value:
-            "• **Không spam** lệnh quá nhanh.\\n" +
-            "• **Không cay** khi thua.\\n" +
-            "• **Nhắn đúng kênh** quy định (Bot sẽ nhắc nhở nếu sai).\\n" +
-            "• Game luôn có yếu tố may mắn, hãy chơi giải trí!",
+          name: "## 🧧 Phúc Lợi Hàng Ngày",
+          value: `### <#${CHANNELS.checkin}>\nĐiểm danh nhận coin miễn phí mỗi ngày`,
           inline: false,
         },
         {
-          name: "📅 Điểm Danh & Tài Chính",
+          name: "## 🎰 Sàn Đấu (Game Zone)",
           value:
-            "`/daily` : Điểm danh tại <#" +
-            CHANNELS.checkin +
-            ">\\n" +
-            "`/wallet` : Xem số dư túi tiền (Riêng tư)\\n" +
-            "`/tip` : Lì xì cho bạn bè (Miễn phí, chỉ cần xác nhận)\\n" +
-            "`/pay` : Chuyển khoản giao dịch (Phí 5%, cần xác nhận)",
+            `### <#${CHANNELS.gaming[0]}> - Blackjack (Xì Dách)\n` +
+            `### <#${CHANNELS.gaming[1]}> - Nối Từ\n` +
+            `Chơi game và kiếm coin tại đây!`,
           inline: false,
         },
         {
-          name: "🃏 Blackjack (Xì Dách)",
-          value:
-            "`/blackjack bet:<tiền>` : Bắt đầu ván mới\\n" +
-            "`/blackjack-help` : Hướng dẫn luật chơi Blackjack\\n" +
-            "`/blackjack-stats` : Xem thống kê thắng/thua của bạn",
+          name: "## 📬 Góp Ý & Báo Lỗi",
+          value: `### <#${CHANNELS.feedback}>\nĐóng góp ý tưởng hoặc bug cho bot`,
           inline: false,
         }
       );
 
-    console.log("📨 Sending Message 1 (Map + Banner 2)...");
-    const msg1 = await channel.send({
+    await webhook.send({
       embeds: [embedMap],
-      files: [banner2File],
+      username: "Helper",
     });
-    await msg1.pin();
 
-    console.log("📨 Sending Message 2 (Rules + Banner 1)...");
-    const msg2 = await channel.send({
-      embeds: [embedCmd],
+    await wait(2000);
+
+    // === STEP 3: BANNER 1 (ẢNH) ===
+    console.log("📨 [3/4] Sending Banner 1...");
+    await webhook.send({
       files: [banner1File],
+      username: "Helper",
     });
-    await msg2.pin();
 
-    console.log("✅ Done! Exit in 3s...");
-    setTimeout(() => process.exit(0), 3000);
+    await wait(1500);
+
+    // === STEP 4: LỆNH CƠ BẢN (TEXT) ===
+    console.log("📨 [4/4] Sending Commands Embed...");
+    const embedCommands = new EmbedBuilder()
+      .setTitle("# ⚙️ LỆNH CƠ BẢN")
+      .setColor("#3498DB")
+      .setDescription("### Danh sách lệnh để sử dụng bot:")
+      .addFields(
+        {
+          name: "## 💰 Tài Chính",
+          value:
+            "### `/daily` - Điểm danh nhận coin\n" +
+            "### `/wallet` - Xem số dư\n" +
+            "### `/tip` - Lì xì bạn bè\n" +
+            "### `/pay` - Chuyển khoản (phí 5%)",
+          inline: false,
+        },
+        {
+          name: "## 🎴 Blackjack",
+          value:
+            "### `/blackjack` - Chơi Xì Dách\n" +
+            "### `/blackjack-help` - Hướng dẫn\n" +
+            "### `/blackjack-stats` - Thống kê",
+          inline: false,
+        },
+        {
+          name: "## 🔗 Nối Từ",
+          value:
+            "### Gõ 2 từ vào chat (VD: `mưa gió`)\n" +
+            "### `/wordchain-surrender` - Đầu hàng",
+          inline: false,
+        }
+      );
+
+    await webhook.send({
+      embeds: [embedCommands],
+      username: "Helper",
+    });
+
+    console.log("✅ Done! All guide messages sent successfully!");
+    process.exit(0);
   } catch (error) {
     console.error("❌ Error:", error);
     process.exit(1);
   }
-});
+}
 
-client.login(DISCORD_TOKEN);
+sendGuides();
